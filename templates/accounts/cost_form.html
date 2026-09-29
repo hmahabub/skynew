@@ -1,0 +1,105 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Add Cost - SkyTex ERP{% endblock %}
+
+{% block page_title %}Add Cost{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="alert alert-secondary py-2 small">
+                        Leave Purchase Order blank for an "Other Cost" entry; set it to record a PO-linked cost.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Project *</label>
+                                {{ form.project }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Purchase Order</label>
+                                {{ form.purchase_order }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Cost Type *</label>
+                                {{ form.cost_type }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Cost Date *</label>
+                                {{ form.cost_date }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Amount *</label>
+                                {{ form.amount }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Currency</label>
+                                {{ form.currency }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Status</label>
+                                {{ form.payment_status }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Remarks</label>
+                        {{ form.remarks }}
+                    </div>
+
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> Add Cost
+                        </button>
+                        <a href="{% url 'accounts:costs_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

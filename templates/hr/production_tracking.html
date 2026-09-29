@@ -1,0 +1,116 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Production Tracking - SkyTex ERP{% endblock %}
+
+{% block page_title %}Production Tracking{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Summary Stats -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="text-muted">Total Production</h6>
+                <h3>{{ total_quantity|floatformat:0 }}</h3>
+                <small class="text-success">Pieces Produced</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="text-muted">Defective Items</h6>
+                <h3>{{ total_defective|floatformat:0 }}</h3>
+                <small class="text-danger">Quality Control</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="text-muted">Average Quality Rate</h6>
+                <h3>{{ avg_quality|floatformat:1 }}%</h3>
+                <small class="text-info">Production Quality</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">From Date</label>
+                <input type="date" name="from_date" class="form-control" value="{{ request.GET.from_date }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">To Date</label>
+                <input type="date" name="to_date" class="form-control" value="{{ request.GET.to_date }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Style</label>
+                <select name="style" class="form-select">
+                    <option value="">All Styles</option>
+                    {% for style in styles %}
+                    <option value="{{ style }}" {% if request.GET.style == style %}selected{% endif %}>
+                        {{ style }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Production Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Employee</th>
+                        <th>Style</th>
+                        <th>Operation</th>
+                        <th>Quantity</th>
+                        <th>Good</th>
+                        <th>Defective</th>
+                        <th>Quality Rate</th>
+                        <th>Supervisor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for production in productions %}
+                    <tr>
+                        <td>{{ production.date }}</td>
+                        <td>
+                            <a href="{% url 'hr:employee_detail' production.employee.pk %}">
+                                {{ production.employee.full_name }}
+                            </a>
+                        </td>
+                        <td><span class="badge bg-primary">{{ production.style_number }}</span></td>
+                        <td>{{ production.operation_name }}</td>
+                        <td>{{ production.quantity_produced }}</td>
+                        <td>{{ production.good_quantity }}</td>
+                        <td>{{ production.defective_quantity }}</td>
+                        <td>
+                            <span class="badge bg-{% if production.quality_rate >= 95 %}success{% elif production.quality_rate >= 80 %}warning{% else %}danger{% endif %}">
+                                {{ production.quality_rate|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ production.line_supervisor }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <i class="fas fa-tshirt fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No production records found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

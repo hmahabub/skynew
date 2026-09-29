@@ -1,0 +1,93 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Departments - SkyTex ERP{% endblock %}
+
+{% block page_title %}Department Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Department Management</h5>
+                <p class="text-muted small mb-0">Manage all departments and their designations</p>
+            </div>
+            <div>
+                <a href="{% url 'hr:add_department' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Department
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        {% for department in departments %}
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="mb-1">{{ department.name }}</h5>
+                        <span class="badge bg-primary">{{ department.code }}</span>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-edit"></i> Edit</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-trash"></i> Delete</a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <p class="text-muted small">{{ department.description|default:"No description" }}</p>
+                
+                <div class="row text-center mt-3">
+                    <div class="col-6">
+                        <h6 class="mb-0">{{ department.employees.count }}</h6>
+                        <small class="text-muted">Employees</small>
+                    </div>
+                    <div class="col-6">
+                        <h6 class="mb-0">{{ department.designations.count }}</h6>
+                        <small class="text-muted">Designations</small>
+                    </div>
+                </div>
+                
+                {% if department.hod %}
+                <div class="mt-2">
+                    <small class="text-muted">Head of Department: </small>
+                    <strong>{{ department.hod }}</strong>
+                </div>
+                {% endif %}
+                
+                <hr>
+                
+                <div class="mt-2">
+                    <small class="text-muted">Designations:</small>
+                    <div class="mt-1">
+                        {% for designation in department.designations.all|slice:":3" %}
+                            <span class="badge bg-light text-dark me-1">{{ designation.name }}</span>
+                        {% endfor %}
+                        {% if department.designations.count > 3 %}
+                            <span class="badge bg-light text-dark">+{{ department.designations.count|add:"-3" }} more</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="stat-card text-center py-5">
+                <i class="fas fa-building fa-4x text-muted mb-3"></i>
+                <h5>No Departments Found</h5>
+                <p class="text-muted">Start by creating your first department</p>
+                <a href="{% url 'hr:add_department' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Department
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

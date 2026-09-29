@@ -1,0 +1,50 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Add Department - SkyTex ERP{% endblock %}
+
+{% block page_title %}Add Department{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Department Name *</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g., Cutting Department" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Department Code *</label>
+                        <input type="text" name="code" class="form-control" placeholder="e.g., CUT" required>
+                        <small class="text-muted">Unique code for the department (max 10 characters)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Head of Department</label>
+                        <input type="text" name="hod" class="form-control" placeholder="Name of HOD">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="Department description"></textarea>
+                    </div>
+                    
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> Create Department
+                        </button>
+                        <a href="{% url 'hr:department_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

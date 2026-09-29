@@ -1,0 +1,34 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Delete Employee - SkyTex ERP{% endblock %}
+
+{% block page_title %}Delete Employee{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="stat-card">
+        <div class="text-center py-4">
+            <i class="fas fa-exclamation-triangle fa-4x text-danger mb-3"></i>
+            <h5>Are you sure you want to deactivate this employee?</h5>
+            <p class="text-muted">
+                <strong>{{ employee.full_name }}</strong> ({{ employee.employee_id }})<br>
+                Department: {{ employee.department.name|default:"-" }}
+            </p>
+            <p class="text-danger small">
+                <i class="fas fa-info-circle"></i> 
+                This action will deactivate the employee account. They will no longer be able to access the system.
+            </p>
+            
+            <form method="post" class="mt-4">
+                {% csrf_token %}
+                <a href="{% url 'hr:employee_detail' employee.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-user-slash"></i> Deactivate Employee
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

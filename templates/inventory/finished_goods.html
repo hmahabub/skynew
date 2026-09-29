@@ -1,0 +1,160 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Finished Goods - SkyTex ERP{% endblock %}
+
+{% block page_title %}Finished Goods Inventory{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Finished Goods Inventory</h5>
+                <p class="text-muted small mb-0">Stock per style, size and color. <strong>Pending Dispatch</strong> = already on a dispatch that isn't approved yet.</p>
+            </div>
+            <div>
+                <a href="{% url 'inventory:add_finished_goods' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Product
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label small">Search</label>
+                <input type="text" name="search" class="form-control" placeholder="Search by style, size, color..." value="{{ search|default_if_none:'' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Stock Status</label>
+                <select name="stock_status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="in_stock" {% if current_stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                    <option value="out" {% if current_stock_status == 'out' %}selected{% endif %}>Out of Stock</option>
+                    <option value="pending_dispatch" {% if current_stock_status == 'pending_dispatch' %}selected{% endif %}>Has Pending Dispatch</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{% url 'inventory:finished_goods_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-undo"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Finished Goods Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Style</th>
+                        <th>Size</th>
+                        <th>Color</th>
+                        <th>In Stock</th>
+                        <th title="On dispatches that are Pending or On-going">Pending Dispatch</th>
+                        <th title="In Stock minus Pending Dispatch">Available</th>
+                        <th>Dispatched</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in finished_goods %}
+                    <tr>
+                        <td><strong>{{ item.style }}</strong></td>
+                        <td>{{ item.size }}</td>
+                        <td>{{ item.color }}</td>
+                        <td>{{ item.quantity_in_stock }}</td>
+                        <td>
+                            {% if item.pending_dispatch_qty %}
+                                <span class="text-warning fw-bold">{{ item.pending_dispatch_qty }}</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong class="{% if item.available_stock > 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ item.available_stock }}
+                            </strong>
+                        </td>
+                        <td>{{ item.quantity_dispatched }}</td>
+                        <td>
+                            {% if item.quantity_in_stock <= 0 %}
+                                <span class="badge bg-secondary">Out of Stock</span>
+                            {% elif item.available_stock <= 0 %}
+                                <span class="badge bg-warning text-dark">All Reserved</span>
+                            {% else %}
+                                <span class="badge bg-success">In Stock</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'inventory:add_finished_goods_stock' item.pk %}" class="btn btn-outline-success" title="Add Stock">
+                                    <i class="fas fa-plus"></i>
+                                </a>
+                                <a href="{% url 'inventory:finished_goods_stock_ledger' item.pk %}" class="btn btn-outline-primary" title="Stock History">
+                                    <i class="fas fa-history"></i>
+                                </a>
+                                <a href="{% url 'inventory:edit_finished_goods' item.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <i class="fas fa-boxes fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No finished goods found</p>
+                            <a href="{% url 'inventory:add_finished_goods' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Product
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if finished_goods.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if finished_goods.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ finished_goods.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_stock_status %}&stock_status={{ current_stock_status }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for num in finished_goods.paginator.page_range %}
+                <li class="page-item {% if finished_goods.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if current_stock_status %}&stock_status={{ current_stock_status }}{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+                {% endfor %}
+
+                {% if finished_goods.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ finished_goods.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_stock_status %}&stock_status={{ current_stock_status }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

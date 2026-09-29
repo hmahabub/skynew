@@ -1,0 +1,152 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Stationery - SkyTex ERP{% endblock %}
+
+{% block page_title %}Stationery{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Stationery</h5>
+                <p class="text-muted small mb-0">Office/stationery supplies stock and consumption</p>
+            </div>
+            <div>
+                <a href="{% url 'inventory:add_stationery_item' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Item
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Search</label>
+                <input type="text" name="search" class="form-control" placeholder="Search by name..." value="{{ search|default_if_none:'' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Category</label>
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for code, label in categories %}
+                    <option value="{{ code }}" {% if current_category == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Stock Status</label>
+                <select name="stock_status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="low" {% if current_stock_status == 'low' %}selected{% endif %}>Low Stock</option>
+                    <option value="normal" {% if current_stock_status == 'normal' %}selected{% endif %}>Normal</option>
+                    <option value="overstock" {% if current_stock_status == 'overstock' %}selected{% endif %}>Overstock</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{% url 'inventory:stationery_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-undo"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in stationery_items %}
+                    <tr>
+                        <td><strong>{{ item.item_code }}</strong></td>
+                        <td>{{ item.item_name }}</td>
+                        <td><span class="badge bg-info">{{ item.get_category_display }}</span></td>
+                        <td>
+                            <strong>{{ item.current_stock }}</strong>
+                            <small class="text-muted">{{ item.unit }}</small>
+                        </td>
+                        <td>
+                            {% if item.is_low_stock %}
+                                <span class="badge bg-danger">Low Stock</span>
+                            {% elif item.stock_status == 'overstock' %}
+                                <span class="badge bg-warning">Overstock</span>
+                            {% else %}
+                                <span class="badge bg-success">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'inventory:add_stationery_stock' item.pk %}" class="btn btn-outline-success" title="Add Stock">
+                                    <i class="fas fa-plus"></i>
+                                </a>
+                                <a href="{% url 'inventory:record_stationery_consumption' item.pk %}" class="btn btn-outline-info" title="Record Consumption">
+                                    <i class="fas fa-minus"></i>
+                                </a>
+                                <a href="{% url 'inventory:stationery_stock_ledger' item.pk %}" class="btn btn-outline-primary" title="Stock History">
+                                    <i class="fas fa-history"></i>
+                                </a>
+                                <a href="{% url 'inventory:edit_stationery_item' item.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <i class="fas fa-pencil-alt fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No stationery items found</p>
+                            <a href="{% url 'inventory:add_stationery_item' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Item
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if stationery_items.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if stationery_items.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ stationery_items.previous_page_number }}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                {% for num in stationery_items.paginator.page_range %}
+                <li class="page-item {% if stationery_items.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if stationery_items.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ stationery_items.next_page_number }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

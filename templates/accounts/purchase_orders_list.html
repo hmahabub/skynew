@@ -1,0 +1,101 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Purchase Orders - SkyTex ERP{% endblock %}
+
+{% block page_title %}Purchase Orders{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Purchase Order Management</h5>
+                <p class="text-muted small mb-0">Manage all purchase orders</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:add_purchase_order' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Purchase Order
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    {% for status_code, status_name in statuses %}
+                    <option value="{{ status_code }}" {% if current_status == status_code %}selected{% endif %}>
+                        {{ status_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>PO #</th>
+                        <th>Supplier</th>
+                        <th>Project</th>
+                        <th>Order Date</th>
+                        <th>Net Amount</th>
+                        <th>Advance Paid</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in orders %}
+                    <tr>
+                        <td><strong>{{ po.po_number }}</strong></td>
+                        <td>{{ po.supplier.supplier_name }}</td>
+                        <td>{{ po.style.project_number|default:"-" }}</td>
+                        <td>{{ po.order_date }}</td>
+                        <td>${{ po.net_amount|floatformat:2 }}</td>
+                        <td>${{ po.advance_paid|floatformat:2 }}</td>
+                        <td>
+                            <span class="badge bg-{% if po.status == 'completed' %}success{% elif po.status == 'cancelled' %}danger{% elif po.status == 'received' %}info{% else %}secondary{% endif %}">
+                                {{ po.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'accounts:purchase_order_detail' po.pk %}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'accounts:edit_purchase_order' po.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-file-invoice fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No purchase orders found</p>
+                            <a href="{% url 'accounts:add_purchase_order' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Purchase Order
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

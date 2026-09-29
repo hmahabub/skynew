@@ -1,0 +1,96 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Supply Adjustments - SkyTex ERP{% endblock %}
+
+{% block page_title %}Supply Adjustments{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Supply Adjustments</h5>
+                <p class="text-muted small mb-0">Corrections for Spare Parts and Stationery</p>
+            </div>
+            <div class="d-flex gap-2">
+                {% if request.user.is_superuser %}
+                <a href="{% url 'inventory:pending_approvals' %}" class="btn btn-outline-warning">
+                    <i class="fas fa-clock"></i> Pending Approvals
+                </a>
+                {% endif %}
+                <a href="{% url 'inventory:add_supply_adjustment' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> New Adjustment
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Adjustment #</th>
+                        <th>Type</th>
+                        <th>Direction</th>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Date</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adjustment in adjustments %}
+                    <tr>
+                        <td><strong>{{ adjustment.adjustment_number }}</strong></td>
+                        <td><span class="badge bg-secondary">{{ adjustment.get_adjustment_type_display }}</span></td>
+                        <td>
+                            <span class="badge bg-{% if adjustment.direction == 'increase' %}success{% else %}danger{% endif %}">
+                                {{ adjustment.get_direction_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if adjustment.spare_part %}
+                                <a href="{% url 'inventory:spare_part_stock_ledger' adjustment.spare_part_id %}">{{ adjustment.spare_part.part_name }}</a>
+                            {% elif adjustment.stationery_item %}
+                                <a href="{% url 'inventory:stationery_stock_ledger' adjustment.stationery_item_id %}">{{ adjustment.stationery_item.item_name }}</a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="{% if adjustment.direction == 'increase' %}text-success{% else %}text-danger{% endif %}">
+                                {% if adjustment.direction == 'increase' %}+{% else %}-{% endif %}{{ adjustment.quantity }}
+                            </span>
+                        </td>
+                        <td>{{ adjustment.adjustment_date }}</td>
+                        <td class="text-muted small">{{ adjustment.reason|truncatechars:30 }}</td>
+                        <td>
+                            {% if adjustment.status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                            {% elif adjustment.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-edit fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No supply adjustments found</p>
+                            <a href="{% url 'inventory:add_supply_adjustment' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Create First Adjustment
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

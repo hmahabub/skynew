@@ -1,0 +1,163 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Add Payment - SkyTex ERP{% endblock %}
+
+{% block page_title %}Add Payment{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <form method="post" id="paymentForm">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Number *</label>
+                                {{ form.payment_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Type *</label>
+                                {{ form.payment_type }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Method *</label>
+                                {{ form.payment_method }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Payment Date *</label>
+                                {{ form.payment_date }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Receivable Section -->
+                    <div id="receivableSection" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Buyer *</label>
+                                    {{ form.buyer }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Sales Invoice *</label>
+                                    {{ form.sales_invoice }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Payable Section -->
+                    <div id="payableSection" style="display: none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Supplier *</label>
+                                    {{ form.supplier }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Purchase Order *</label>
+                                    {{ form.purchase_order }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Amount *</label>
+                                {{ form.amount }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Reference Number</label>
+                                {{ form.reference_number }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                    
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> Process Payment
+                        </button>
+                        <a href="{% url 'accounts:payments_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const paymentType = document.getElementById('id_payment_type');
+        const receivableSection = document.getElementById('receivableSection');
+        const payableSection = document.getElementById('payableSection');
+        
+        function toggleSections() {
+            const type = paymentType.value;
+            if (type === 'receivable') {
+                receivableSection.style.display = 'block';
+                payableSection.style.display = 'none';
+                document.getElementById('id_buyer').required = true;
+                document.getElementById('id_sales_invoice').required = true;
+                document.getElementById('id_supplier').required = false;
+                document.getElementById('id_purchase_order').required = false;
+            } else if (type === 'payable') {
+                receivableSection.style.display = 'none';
+                payableSection.style.display = 'block';
+                document.getElementById('id_buyer').required = false;
+                document.getElementById('id_sales_invoice').required = false;
+                document.getElementById('id_supplier').required = true;
+                document.getElementById('id_purchase_order').required = true;
+            } else {
+                receivableSection.style.display = 'none';
+                payableSection.style.display = 'none';
+                document.getElementById('id_buyer').required = false;
+                document.getElementById('id_sales_invoice').required = false;
+                document.getElementById('id_supplier').required = false;
+                document.getElementById('id_purchase_order').required = false;
+            }
+        }
+        
+        paymentType.addEventListener('change', toggleSections);
+        toggleSections(); // Initial state
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ lc.lc_number }} - SkyTex ERP{% endblock %}
+
+{% block page_title %}LC - {{ lc.lc_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>LC #{{ lc.lc_number }}</h5>
+                    <span class="badge bg-{% if lc.status == 'active' %}success{% elif lc.status == 'utilized' %}info{% elif lc.status == 'expired' %}warning{% else %}danger{% endif %} badge-status">
+                        {{ lc.get_status_display }}
+                    </span>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Project:</strong> {{ lc.project.project_number }}</p>
+                        <p class="mb-1"><strong>Bank:</strong> {{ lc.bank_name }}</p>
+                        <p class="mb-1"><strong>LC Date:</strong> {{ lc.lc_date }}</p>
+                        <p class="mb-1"><strong>Expiry Date:</strong> {{ lc.expiry_date }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>LC Amount:</strong> {{ lc.currency }} {{ lc.lc_amount|floatformat:2 }}</p>
+                        <p class="mb-1"><strong>Total Paid:</strong> {{ lc.total_paid|floatformat:2 }}</p>
+                        <p class="mb-1"><strong>Outstanding:</strong>
+                            <span class="{% if lc.lc_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                                {{ lc.lc_outstanding|floatformat:2 }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+
+                {% if lc.remarks %}
+                <hr>
+                <p class="text-muted small mb-0">{{ lc.remarks }}</p>
+                {% endif %}
+
+                <hr>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Payments</h6>
+                    <a href="{% url 'accounts:add_lc_payment' lc.pk %}" class="btn btn-sm btn-gradient">
+                        <i class="fas fa-plus"></i> Add Payment
+                    </a>
+                </div>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm">
+                        <thead><tr><th>Date</th><th>Amount</th><th>Bank</th><th>Reference</th></tr></thead>
+                        <tbody>
+                            {% for payment in payments %}
+                            <tr>
+                                <td>{{ payment.payment_date }}</td>
+                                <td>{{ payment.amount|floatformat:2 }}</td>
+                                <td>{{ payment.bank_name|default:"-" }}</td>
+                                <td>{{ payment.reference|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted">No payments recorded</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Loans Against LC</h6>
+                    <a href="{% url 'accounts:add_lc_loan' lc.pk %}" class="btn btn-sm btn-gradient">
+                        <i class="fas fa-plus"></i> Add Loan
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Date</th><th>Amount</th><th>Interest</th><th>Repaid</th><th>Outstanding</th></tr></thead>
+                        <tbody>
+                            {% for loan in loans %}
+                            <tr>
+                                <td>{{ loan.loan_date }}</td>
+                                <td>{{ loan.loan_amount|floatformat:2 }}</td>
+                                <td>{{ loan.interest|floatformat:2 }}</td>
+                                <td>{{ loan.repaid_amount|floatformat:2 }}</td>
+                                <td class="{% if loan.outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ loan.outstanding|floatformat:2 }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted">No loans recorded</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3">
+                    <a href="{% url 'accounts:lc_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                    <a href="{% url 'accounts:project_detail' lc.project.pk %}" class="btn btn-outline-primary">
+                        <i class="fas fa-folder-open"></i> View Project
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6>LC Summary</h6>
+                <div class="mb-3">
+                    <small class="text-muted">LC Amount</small>
+                    <h5>{{ lc.currency }} {{ lc.lc_amount|floatformat:2 }}</h5>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">Total Paid</small>
+                    <h5 class="text-success">{{ lc.total_paid|floatformat:2 }}</h5>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">Outstanding</small>
+                    <h5 class="text-danger">{{ lc.lc_outstanding|floatformat:2 }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

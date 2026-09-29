@@ -1,0 +1,302 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{% if dispatch %}Edit{% else %}Create{% endif %} Dispatch - SkyTex ERP{% endblock %}
+
+{% block page_title %}{% if dispatch %}Edit{% else %}Create{% endif %} Dispatch{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="stat-card">
+                <form method="post" id="dispatchForm">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{% if field != '__all__' %}{{ field }}: {% endif %}{{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Dispatch Number *</label>
+                                {{ form.dispatch_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Project *</label>
+                                {{ form.project }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Dispatch Date *</label>
+                                {{ form.dispatch_date }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Total Cartons *</label>
+                                {{ form.total_cartons }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="border-bottom pb-2 mb-3">Shipping Information</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Shipping Line *</label>
+                                {{ form.shipping_line }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Shipping Agent</label>
+                                {{ form.shipping_agent }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Vessel Name</label>
+                                {{ form.vessel_name }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Vessel Number</label>
+                                {{ form.vessel_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Container Number</label>
+                                {{ form.container_number }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Container Size</label>
+                                {{ form.container_size }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">BL Number</label>
+                                {{ form.bl_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">BL Date</label>
+                                {{ form.bl_date }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Ex-Factory Date</label>
+                                {{ form.ex_factory_date }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if not dispatch %}
+                    <h6 class="border-bottom pb-2 mb-3">Dispatch Items</h6>
+                    <p class="text-muted small">
+                        Type a style to narrow the product list. Stock isn't taken out yet - these items show as
+                        <strong>Pending Dispatch</strong> until the dispatch is approved as Dispatched.
+                    </p>
+
+                    {% if not finished_goods %}
+                    <div class="alert alert-warning py-2 small">
+                        No finished goods are available to dispatch right now.
+                        <a href="{% url 'inventory:finished_goods_list' %}">Add stock on Finished Goods</a> first.
+                    </div>
+                    {% endif %}
+
+                    <div class="table-responsive" data-no-print>
+                        <table class="table table-bordered align-middle" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50%;">Product</th>
+                                    <th>Carton Number</th>
+                                    <th style="width: 15%;">Quantity</th>
+                                    <th style="width: 1%;">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="addRow()" title="Add another item">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsBody"></tbody>
+                        </table>
+                    </div>
+
+                    <template id="itemRowTemplate">
+                        <tr>
+                            <td>
+                                <div class="input-group input-group-sm mb-1">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="search" class="form-control js-style-search" placeholder="Search by style..." autocomplete="off">
+                                </div>
+                                <select name="finished_goods_ids[]" class="form-select js-product">
+                                    <option value="">Select product</option>
+                                    {% for fg in finished_goods %}
+                                    <option value="{{ fg.id }}" data-style="{{ fg.style|lower }}" data-available="{{ fg.available_stock }}">
+                                        {{ fg.style }} | {{ fg.size }} / {{ fg.color }} ({{ fg.available_stock }} available)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text js-match-count"></div>
+                            </td>
+                            <td>
+                                <input type="text" name="carton_numbers[]" class="form-control" placeholder="e.g., CTN-001">
+                            </td>
+                            <td>
+                                <input type="number" name="quantities[]" class="form-control js-quantity" min="1">
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)" title="Remove item">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    {{ posted_rows|json_script:"posted-rows" }}
+                    {% else %}
+                    <div class="alert alert-info py-2 small">
+                        Items can't be changed here - see the dispatch's detail page for its item list.
+                        If the items are wrong, delete this dispatch (while it isn't dispatched yet) and create a new one.
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> {% if dispatch %}Update{% else %}Create{% endif %} Dispatch
+                        </button>
+                        <a href="{% if dispatch %}{% url 'inventory:dispatch_detail' dispatch.pk %}{% else %}{% url 'inventory:dispatches' %}{% endif %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function wireRow(row) {
+        const search = row.querySelector('.js-style-search');
+        const select = row.querySelector('.js-product');
+        const qty = row.querySelector('.js-quantity');
+        const matchCount = row.querySelector('.js-match-count');
+
+        // Filter the product list to styles containing the typed text; if
+        // exactly one product matches, pick it straight away.
+        search.addEventListener('input', function () {
+            const term = search.value.trim().toLowerCase();
+            let matches = [];
+            Array.from(select.options).forEach(function (option) {
+                if (!option.value) return;
+                const show = !term || option.dataset.style.includes(term);
+                option.hidden = !show;
+                option.disabled = !show;
+                if (show) matches.push(option);
+            });
+            const current = select.options[select.selectedIndex];
+            if (current && current.value && current.hidden) {
+                select.value = '';
+            }
+            if (term && matches.length === 1) {
+                select.value = matches[0].value;
+            }
+            matchCount.textContent = term ? matches.length + ' matching product(s)' : '';
+            syncMax();
+        });
+
+        function syncMax() {
+            const chosen = select.options[select.selectedIndex];
+            if (chosen && chosen.value) {
+                qty.max = chosen.dataset.available;
+                qty.placeholder = 'max ' + chosen.dataset.available;
+            } else {
+                qty.removeAttribute('max');
+                qty.placeholder = '';
+            }
+        }
+        select.addEventListener('change', syncMax);
+        syncMax();
+    }
+
+    function addRow(values) {
+        const tbody = document.getElementById('itemsBody');
+        const row = document.getElementById('itemRowTemplate').content.firstElementChild.cloneNode(true);
+        if (values) {
+            row.querySelector('.js-product').value = values.finished_goods_id;
+            row.querySelector('[name="carton_numbers[]"]').value = values.carton_number;
+            row.querySelector('.js-quantity').value = values.quantity;
+        }
+        tbody.appendChild(row);
+        wireRow(row);
+        return row;
+    }
+
+    function removeRow(button) {
+        const tbody = document.getElementById('itemsBody');
+        if (tbody.querySelectorAll('tr').length > 1) {
+            button.closest('tr').remove();
+        } else {
+            alert('At least one item row is required.');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!document.getElementById('itemsBody')) return;  // editing: no item rows
+        const postedRows = JSON.parse(document.getElementById('posted-rows').textContent) || [];
+        if (postedRows.length) {
+            postedRows.forEach(function (values) { addRow(values); });
+        } else {
+            addRow();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const dispatchField = document.getElementById('id_dispatch_number');
+        if (!dispatchField.value) {
+            const today = new Date();
+            const dateStr = today.getFullYear().toString().slice(-2) + 
+                           String(today.getMonth() + 1).padStart(2, '0') + 
+                           String(today.getDate()).padStart(2, '0');
+            const count = Math.floor(Math.random() * 1000);
+            dispatchField.value = `DSP-${dateStr}-${String(count).padStart(4, '0')}`;
+        }
+    });
+</script>
+{% endblock %}

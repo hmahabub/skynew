@@ -1,0 +1,101 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{% if po %}Edit{% else %}Add{% endif %} Purchase Order - SkyTex ERP{% endblock %}
+
+{% block page_title %}{% if po %}Edit{% else %}Add{% endif %} Purchase Order{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">PO Number *</label>
+                                {{ form.po_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Supplier *</label>
+                                {{ form.supplier }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Project</label>
+                        {{ form.style }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Order Date *</label>
+                                {{ form.order_date }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Delivery Date *</label>
+                                {{ form.delivery_date }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Total Amount *</label>
+                                {{ form.total_amount }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Discount</label>
+                                {{ form.discount }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Tax</label>
+                                {{ form.tax }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> {% if po %}Update{% else %}Create{% endif %} Purchase Order
+                        </button>
+                        <a href="{% url 'accounts:purchase_orders_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

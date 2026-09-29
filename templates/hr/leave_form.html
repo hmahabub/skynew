@@ -1,0 +1,153 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Apply for Leave - SkyTex ERP{% endblock %}
+
+{% block page_title %}Apply for Leave{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Employee *</label>
+                        {{ form.employee }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Leave Type *</label>
+                        {{ form.leave_type }}
+                    </div>
+
+                    <div id="leave-balance-box" class="alert alert-secondary d-none">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="leave-balance-text"></span>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Start Date *</label>
+                                {{ form.start_date }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">End Date *</label>
+                                {{ form.end_date }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Reason *</label>
+                        {{ form.reason }}
+                    </div>
+                    
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-paper-plane"></i> Submit Request
+                        </button>
+                        <a href="{% url 'hr:leave_requests' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="stat-card mt-3">
+                <h6>Leave Policy</h6>
+                <ul class="text-muted small">
+                    <li>Casual Leave: 14 days per year</li>
+                    <li>Sick Leave: 10 days per year</li>
+                    <li>Unpaid Leave: no annual limit, but deducted from pay like an absence</li>
+                </ul>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-sync-alt"></i>
+                    Once a leave request is <strong>approved</strong>, attendance for those dates is updated
+                    automatically and the days will not be deducted as absences during payroll. Any day not
+                    covered by an approved leave is counted as absent in payroll.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    var employeeBalances = {{ employee_balances_json|safe }};
+    var leaveTypeLabels = {
+        'annual': 'Annual Leave', 'sick': 'Sick Leave', 'casual': 'Casual Leave',
+        'maternity': 'Maternity Leave', 'paternity': 'Paternity Leave', 'unpaid': 'Unpaid Leave'
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Calculate days when dates change
+        const startDate = document.getElementById('id_start_date');
+        const endDate = document.getElementById('id_end_date');
+        const employeeSelect = document.getElementById('id_employee');
+        const leaveTypeSelect = document.getElementById('id_leave_type');
+        const balanceBox = document.getElementById('leave-balance-box');
+        const balanceText = document.getElementById('leave-balance-text');
+
+        function calculateDays() {
+            if (startDate.value && endDate.value) {
+                const start = new Date(startDate.value);
+                const end = new Date(endDate.value);
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                // You can display this somewhere
+            }
+        }
+
+        function updateBalanceBox() {
+            if (!employeeSelect || !leaveTypeSelect) return;
+            const empId = employeeSelect.value;
+            const leaveType = leaveTypeSelect.value;
+
+            if (!empId || !leaveType || leaveType === 'unpaid') {
+                balanceBox.classList.add('d-none');
+                return;
+            }
+
+            const balances = employeeBalances[empId];
+            const balance = balances ? balances[leaveType] : null;
+
+            if (!balance) {
+                balanceBox.classList.add('d-none');
+                return;
+            }
+
+            balanceText.textContent = (leaveTypeLabels[leaveType] || leaveType) + ': ' +
+                balance.remaining + ' of ' + balance.entitled + ' day(s) remaining this year (' +
+                balance.used + ' used).';
+            balanceBox.classList.remove('d-none');
+            balanceBox.classList.toggle('alert-warning', balance.remaining <= 0);
+            balanceBox.classList.toggle('alert-secondary', balance.remaining > 0);
+        }
+
+        startDate.addEventListener('change', calculateDays);
+        endDate.addEventListener('change', calculateDays);
+
+        if (employeeSelect) employeeSelect.addEventListener('change', updateBalanceBox);
+        if (leaveTypeSelect) leaveTypeSelect.addEventListener('change', updateBalanceBox);
+        updateBalanceBox();
+    });
+</script>
+{% endblock %}

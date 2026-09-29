@@ -1,0 +1,187 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Fabric Management - SkyTex ERP{% endblock %}
+
+{% block page_title %}Fabric Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Fabric Management</h5>
+                <p class="text-muted small mb-0">Manage all fabric materials and stock levels</p>
+            </div>
+            <div>
+                <a href="{% url 'inventory:add_fabric' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Fabric
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Search</label>
+                <input type="text" name="search" class="form-control" placeholder="Name, color, supplier, buyer, PO..." value="{{ search|default_if_none:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Fabric Type</label>
+                <select name="type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for type_code, type_name in fabric_types %}
+                    <option value="{{ type_code }}" {% if current_type == type_code %}selected{% endif %}>
+                        {{ type_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Stock Status</label>
+                <select name="stock_status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="in_stock" {% if current_stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                    <option value="out_of_stock" {% if current_stock_status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{% url 'inventory:fabric_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-undo"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Fabric Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Fabric Details</th>
+                        <th>Supplier / Buyer</th>
+                        <th>Type</th>
+                        <th>Color</th>
+                        <th>GSM</th>
+                        <th>Width</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fabric in fabrics %}
+                    <tr>
+                        <td><strong>{{ fabric.fabric_code }}</strong></td>
+                        <td>
+                            {{ fabric.fabric_name }}
+                            {% if fabric.purchase_order or fabric.project %}
+                            <div class="small text-muted">
+                                {% if fabric.purchase_order %}PO: {{ fabric.purchase_order }}{% endif %}
+                                {% if fabric.purchase_order and fabric.project %}&middot;{% endif %}
+                                {% if fabric.project %}{{ fabric.project }}{% endif %}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>{{ fabric.supplier|default:"-" }}</div>
+                            {% if fabric.buyer %}<div class="small text-muted">{{ fabric.buyer }}</div>{% endif %}
+                        </td>
+                        <td><span class="badge bg-info">{{ fabric.get_fabric_type_display }}</span></td>
+                        <td>{{ fabric.color }}</td>
+                        <td>{{ fabric.gsm }} gsm</td>
+                        <td>{{ fabric.width }}"</td>
+                        <td>
+                            <strong>{{ fabric.current_stock|floatformat:0 }}</strong>
+                            <small class="text-muted">{{ fabric.unit }}</small>
+                        </td>
+                        <td>
+                            {% if fabric.stock_status == 'in_stock' %}
+                                <span class="badge bg-success">In Stock</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Out of Stock</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-success" title="Add Stock"
+                                        data-fabric-stock="add" data-fabric-id="{{ fabric.pk }}"
+                                        data-fabric-name="{{ fabric.fabric_code }} - {{ fabric.fabric_name }}"
+                                        data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" title="Remove Stock"
+                                        data-fabric-stock="remove" data-fabric-id="{{ fabric.pk }}"
+                                        data-fabric-name="{{ fabric.fabric_code }} - {{ fabric.fabric_name }}"
+                                        data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}"
+                                        {% if fabric.current_stock <= 0 %}disabled{% endif %}>
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                                <a href="{% url 'inventory:fabric_stock_ledger' fabric.pk %}" class="btn btn-outline-primary" title="Stock History">
+                                    <i class="fas fa-history"></i>
+                                </a>
+                                <a href="{% url 'inventory:edit_fabric' fabric.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4">
+                            <i class="fas fa-tshirt fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No fabrics found</p>
+                            <a href="{% url 'inventory:add_fabric' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Fabric
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if fabrics.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if fabrics.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ fabrics.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_stock_status %}&stock_status={{ current_stock_status }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in fabrics.paginator.page_range %}
+                <li class="page-item {% if fabrics.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_stock_status %}&stock_status={{ current_stock_status }}{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                {% if fabrics.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ fabrics.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_stock_status %}&stock_status={{ current_stock_status }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+{% include 'inventory/includes/fabric_stock_modals.html' %}
+{% endblock %}

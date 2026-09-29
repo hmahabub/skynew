@@ -1,0 +1,171 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Create Invoice - SkyTex ERP{% endblock %}
+
+{% block page_title %}Create Sales Invoice{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="stat-card">
+                <form method="post" id="invoiceForm">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="border-bottom pb-2 mb-3">Invoice Information</h6>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Invoice Number *</label>
+                                {{ form.invoice_number }}
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Invoice Date *</label>
+                                        {{ form.invoice_date }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Due Date *</label>
+                                        {{ form.due_date }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Letter of Credit</label>
+                                        {{ form.letter_of_credit }}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Exchange Rate</label>
+                                        {{ form.exchange_rate }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Currency</label>
+                                {{ form.currency }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="border-bottom pb-2 mb-3">Buyer & Project Information</h6>
+
+                            <div class="mb-3">
+                                <label class="form-label">Buyer *</label>
+                                {{ form.buyer }}
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Project *</label>
+                                {{ form.style }}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Shipping Terms</label>
+                                {{ form.shipping_terms }}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Shipping Cost</label>
+                                {{ form.shipping_cost }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2 mb-3">Financial Details</h6>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Amount *</label>
+                                {{ form.amount }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Discount</label>
+                                {{ form.discount }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Tax</label>
+                                {{ form.tax }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label class="form-label">Notes</label>
+                                {{ form.notes }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> Create Invoice
+                        </button>
+                        <a href="{% url 'accounts:invoices_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Auto-calculate due date based on credit days
+    document.addEventListener('DOMContentLoaded', function() {
+        const buyerSelect = document.getElementById('id_buyer');
+        const invoiceDate = document.getElementById('id_invoice_date');
+        const dueDate = document.getElementById('id_due_date');
+        
+        buyerSelect.addEventListener('change', function() {
+            // You can add AJAX to get buyer's credit days
+            // For now, we'll set due date to 30 days from invoice date
+            if (invoiceDate.value) {
+                const date = new Date(invoiceDate.value);
+                date.setDate(date.getDate() + 30);
+                dueDate.value = date.toISOString().split('T')[0];
+            }
+        });
+        
+        invoiceDate.addEventListener('change', function() {
+            if (this.value && buyerSelect.value) {
+                const date = new Date(this.value);
+                date.setDate(date.getDate() + 30);
+                dueDate.value = date.toISOString().split('T')[0];
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,186 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ dispatch.dispatch_number }} - SkyTex ERP{% endblock %}
+
+{% block page_title %}Dispatch {{ dispatch.dispatch_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">{{ dispatch.dispatch_number }}</h5>
+                <p class="text-muted small mb-0">{{ dispatch.project.project_number }} &middot; {{ dispatch.project.buyer.buyer_name }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'inventory:edit_dispatch' dispatch.pk %}" class="btn btn-outline-warning">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                {% if not dispatch.is_status_locked %}
+                <form method="post" action="{% url 'inventory:delete_dispatch' dispatch.pk %}"
+                      onsubmit="return confirm('Delete dispatch {{ dispatch.dispatch_number }}? Its items will no longer be reserved.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{% url 'inventory:dispatches' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dispatches
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Status</div>
+                <div class="h4 mb-0">
+                    {% include 'inventory/includes/dispatch_status_badge.html' %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Total Cartons</div>
+                <div class="h4 mb-0">{{ dispatch.total_cartons }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Total Quantity</div>
+                <div class="h4 mb-0">{{ dispatch.total_quantity }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Dispatch Date</div>
+                <div class="h4 mb-0">{{ dispatch.dispatch_date }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card mb-3">
+        <h6 class="border-bottom pb-2">Details</h6>
+        <dl class="row mb-0 small">
+            <dt class="col-sm-2">Project</dt>
+            <dd class="col-sm-4">{{ dispatch.project.project_number }}</dd>
+            <dt class="col-sm-2">Buyer</dt>
+            <dd class="col-sm-4">{{ dispatch.project.buyer.buyer_name }}</dd>
+
+            <dt class="col-sm-2">Shipping Line</dt>
+            <dd class="col-sm-4">{{ dispatch.shipping_line|default:"-" }}</dd>
+
+            <dt class="col-sm-2">Vessel</dt>
+            <dd class="col-sm-4">{{ dispatch.vessel_name|default:"-" }} {{ dispatch.vessel_number }}</dd>
+            <dt class="col-sm-2">Container</dt>
+            <dd class="col-sm-4">{{ dispatch.container_number|default:"-" }} {{ dispatch.container_size }}</dd>
+
+            <dt class="col-sm-2">BL Number</dt>
+            <dd class="col-sm-4">{{ dispatch.bl_number|default:"-" }}</dd>
+            <dt class="col-sm-2">BL Date</dt>
+            <dd class="col-sm-4">{{ dispatch.bl_date|default:"-" }}</dd>
+
+            <dt class="col-sm-2">Ex-Factory Date</dt>
+            <dd class="col-sm-4">{{ dispatch.ex_factory_date|default:"-" }}</dd>
+            <dt class="col-sm-2">Shipping Agent</dt>
+            <dd class="col-sm-4">{{ dispatch.shipping_agent|default:"-" }}</dd>
+
+            {% if dispatch.notes %}
+            <dt class="col-sm-2">Notes</dt>
+            <dd class="col-sm-10">{{ dispatch.notes }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+
+    <div class="stat-card mb-3">
+        <h6 class="border-bottom pb-2">Items</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Style</th>
+                        <th>Size / Color</th>
+                        <th>Carton #</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.finished_goods.style|default:"-" }}</td>
+                        <td>{{ item.finished_goods.size }} / {{ item.finished_goods.color }}</td>
+                        <td>{{ item.carton_number }}</td>
+                        <td>{{ item.quantity }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-3">No items recorded.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <h6 class="border-bottom pb-2">Status</h6>
+
+        {% if dispatch.is_status_locked %}
+            <p class="text-muted small mb-0">
+                <i class="fas fa-lock"></i> Approved as <strong>Dispatched</strong>
+                on {{ dispatch.approved_date }} by {{ dispatch.approved_by.username|default:"-" }} - stock has been deducted.
+                The status can no longer be changed.
+            </p>
+        {% else %}
+            {% if dispatch.dispatch_approval == 'pending' %}
+            <div class="alert alert-warning py-2 small">
+                <strong>Awaiting approval:</strong> {{ dispatch.approval_requested_by.username|default:"Someone" }}
+                asked to mark this dispatch as Dispatched.
+                {% if request.user.is_superuser %}
+                <div class="d-flex gap-2 mt-2">
+                    <form method="post" action="{% url 'inventory:approve_dispatch' dispatch.pk %}"
+                          onsubmit="return confirm('Approve as Dispatched? Finished goods stock will be deducted and the status locked.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-check"></i> Approve as Dispatched
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'inventory:reject_dispatch' dispatch.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            {% elif dispatch.dispatch_approval == 'rejected' %}
+            <p class="text-danger small">
+                A request to mark this Dispatched was rejected
+                {% if dispatch.approved_by %}by {{ dispatch.approved_by.username }}{% endif %}.
+                You can request it again below.
+            </p>
+            {% endif %}
+
+            <form method="post" action="{% url 'inventory:update_dispatch_status' dispatch.pk %}" class="d-flex gap-2 align-items-end">
+                {% csrf_token %}
+                <div>
+                    <label class="form-label small mb-1">New Status</label>
+                    <select name="status" class="form-select form-select-sm">
+                        {% for code, label in statuses %}
+                        <option value="{{ code }}" {% if dispatch.status == code %}selected{% endif %}>{{ label }}{% if code == 'dispatched' %} (needs approval){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-gradient btn-sm">
+                    <i class="fas fa-sync"></i> Update Status
+                </button>
+            </form>
+            <p class="text-muted small mt-2 mb-0">
+                <strong>Dispatched</strong> needs admin approval. Stock is deducted when it's approved.
+            </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

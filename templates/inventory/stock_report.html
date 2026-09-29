@@ -1,0 +1,159 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Stock Report - SkyTex ERP{% endblock %}
+
+{% block page_title %}Stock Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Summary Cards -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="text-muted">Total Fabrics</h6>
+                <h3>{{ fabric_total }}</h3>
+                <small class="text-info">Active items</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="text-muted">Total Trims</h6>
+                <h3>{{ trim_total }}</h3>
+                <small class="text-info">Active items</small>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="text-muted">Finished Goods</h6>
+                <h3>{{ finished_total }}</h3>
+                <small class="text-info">Active items</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fabric Stock Report -->
+    <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Fabric Stock Summary <span class="text-muted small">(most recently updated {{ top_n }} of {{ fabric_total }})</span></h6>
+            <a href="{% url 'inventory:fabric_list' %}" class="btn btn-sm btn-outline-primary">View All <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Color</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fabric in fabric_data %}
+                    <tr>
+                        <td><strong>{{ fabric.code }}</strong></td>
+                        <td>{{ fabric.name }}</td>
+                        <td>{{ fabric.color }}</td>
+                        <td>{{ fabric.stock|floatformat:2 }} <small class="text-muted">{{ fabric.unit }}</small></td>
+                        <td>
+                            <span class="badge bg-{% if fabric.status == 'in_stock' %}success{% else %}secondary{% endif %}">
+                                {% if fabric.status == 'in_stock' %}In Stock{% else %}Out of Stock{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center">No fabric data available</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Trim Stock Report -->
+    <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Trim Stock Summary <span class="text-muted small">(most recently updated {{ top_n }} of {{ trim_total }})</span></h6>
+            <a href="{% url 'inventory:trim_list' %}" class="btn btn-sm btn-outline-primary">View All <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trim in trim_data %}
+                    <tr>
+                        <td><strong>{{ trim.code }}</strong></td>
+                        <td>{{ trim.name }}</td>
+                        <td>{{ trim.stock }} <small class="text-muted">{{ trim.unit }}</small></td>
+                        <td>
+                            <span class="badge bg-{% if trim.status == 'in_stock' %}success{% else %}secondary{% endif %}">
+                                {% if trim.status == 'in_stock' %}In Stock{% else %}Out of Stock{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center">No trim data available</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Finished Goods Stock Report -->
+    <div class="stat-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Finished Goods Stock Summary <span class="text-muted small">(most recently updated {{ top_n }} of {{ finished_total }})</span></h6>
+            <a href="{% url 'inventory:finished_goods_list' %}" class="btn btn-sm btn-outline-primary">View All <i class="fas fa-arrow-right"></i></a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Style</th>
+                        <th>Size</th>
+                        <th>Color</th>
+                        <th>In Stock</th>
+                        <th>Pending Dispatch</th>
+                        <th>Dispatched</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in finished_data %}
+                    <tr>
+                        <td><strong>{{ item.style }}</strong></td>
+                        <td>{{ item.size }}</td>
+                        <td>{{ item.color }}</td>
+                        <td>{{ item.in_stock }}</td>
+                        <td>{{ item.pending_dispatch }}</td>
+                        <td>{{ item.dispatched }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center">No finished goods data available</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="stat-card">
+        <h6 class="mb-3">Export Report</h6>
+        <p class="text-muted small">Exports include the complete list for every category, not just the top {{ top_n }} shown above.</p>
+        <div class="d-flex gap-2">
+            <a href="{% url 'inventory:stock_report_export_pdf' %}" class="btn btn-outline-primary">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </a>
+            <a href="{% url 'inventory:stock_report_export_excel' %}" class="btn btn-outline-success">
+                <i class="fas fa-file-excel"></i> Export Excel
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Production Issues - SkyTex ERP{% endblock %}
+
+{% block page_title %}Production Issues{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Production Issues</h5>
+                <p class="text-muted small mb-0">Manage materials issued to production</p>
+            </div>
+            <div>
+                <a href="{% url 'inventory:add_production_issue' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> New Issue
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Issues Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Issue #</th>
+                        <th>Project</th>
+                        <th>Department</th>
+                        <th>Production Line</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for issue in issues %}
+                    <tr>
+                        <td><strong>{{ issue.issue_number }}</strong></td>
+                        <td>{{ issue.project.project_number }}</td>
+                        <td>{{ issue.department.name|default:"-" }}</td>
+                        <td>{{ issue.production_line }}</td>
+                        <td>{{ issue.issue_date }}</td>
+                        <td>
+                            <span class="badge bg-{% if issue.status == 'issued' %}success{% elif issue.status == 'draft' %}secondary{% elif issue.status == 'completed' %}info{% elif issue.status == 'cancelled' %}danger{% else %}warning{% endif %}">
+                                {{ issue.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="#" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-tools fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No production issues found</p>
+                            <a href="{% url 'inventory:add_production_issue' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Create First Issue
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

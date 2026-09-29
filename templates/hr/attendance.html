@@ -1,0 +1,137 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Attendance Management - SkyTex ERP{% endblock %}
+
+{% block page_title %}Attendance Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Daily Attendance</h5>
+                <p class="text-muted small mb-0">Mark and manage employee attendance</p>
+            </div>
+            <div>
+                <a href="{% url 'hr:bulk_attendance' %}" class="btn btn-gradient">
+                    <i class="fas fa-users"></i> Bulk Attendance
+                </a>
+                <a href="{% url 'hr:export_attendance' %}?date={{ current_date|date:'Y-m-d' }}" class="btn btn-success">
+                    <i class="fas fa-file-export"></i> Export CSV
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Attendance for {{ current_date|date:"l, d F Y" }}</h6>
+                    <a href="{% url 'hr:attendance_view' %}?date={{ current_date|date:'Y-m-d' }}" class="btn btn-sm btn-link">
+                        <i class="fas fa-sync"></i> Refresh
+                    </a>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Employee</th>
+                                <th>Department</th>
+                                <th>Check In</th>
+                                <th>Check Out</th>
+                                <th>Status</th>
+                                <th>Overtime</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for attendance in attendances %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <a href="{% url 'hr:employee_detail' attendance.employee.pk %}">
+                                        {{ attendance.employee.full_name }}
+                                    </a>
+                                </td>
+                                <td>{{ attendance.employee.department.name|default:"-" }}</td>
+                                <td>{{ attendance.check_in_time|default:"-" }}</td>
+                                <td>{{ attendance.check_out_time|default:"-" }}</td>
+                                <td>
+                                    <span class="badge bg-{% if attendance.status == 'present' %}success{% elif attendance.status == 'absent' %}danger{% elif attendance.status == 'late' %}warning{% else %}secondary{% endif %}">
+                                        {{ attendance.get_status_display }}
+                                        {% if attendance.is_late %}
+                                            <i class="fas fa-clock text-warning" title="Late: {{ attendance.late_minutes }} minutes"></i>
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>{{ attendance.overtime_hours|floatformat:1 }}h</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4">
+                                    <i class="fas fa-calendar-times fa-3x text-muted mb-3 d-block"></i>
+                                    <p class="text-muted">No attendance records for this date</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Quick Mark Attendance -->
+            <div class="stat-card">
+                <h6 class="mb-3">Quick Mark Attendance</h6>
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button type="submit" class="btn btn-gradient w-100">
+                        <i class="fas fa-check"></i> Mark Attendance
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Employees Without Attendance -->
+            <div class="stat-card">
+                <h6 class="mb-3">Employees Without Attendance</h6>
+                <div class="list-group list-group-flush">
+                    {% for employee in employees_without %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <small>{{ employee.full_name }}</small>
+                            <br>
+                            <small class="text-muted">{{ employee.employee_id }}</small>
+                        </div>
+                        <a href="#" class="btn btn-sm btn-outline-primary mark-attendance" data-id="{{ employee.pk }}">
+                            <i class="fas fa-check"></i>
+                        </a>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center my-3">All employees have attendance marked</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Quick mark attendance
+        $('.mark-attendance').click(function(e) {
+            e.preventDefault();
+            const employeeId = $(this).data('id');
+            // Implement quick attendance marking with AJAX
+            // For now, redirect to attendance form
+            window.location.href = "{% url 'hr:attendance_view' %}?employee=" + employeeId;
+        });
+    });
+</script>
+{% endblock %}

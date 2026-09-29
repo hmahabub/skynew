@@ -1,0 +1,280 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Warehouse Dashboard - SkyTex ERP{% endblock %}
+
+{% block page_title %}Warehouse Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Total Fabrics</h6>
+                        <h3 class="mb-0">{{ total_fabrics }}</h3>
+                        <small class="text-info">{{ total_fabric_stock|floatformat:0 }} meters in stock</small>
+                    </div>
+                    <div class="card-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-tshirt fa-2x"></i>
+                    </div>
+                </div>
+                {% if out_of_stock_fabric_count > 0 %}
+                <div class="mt-2">
+                    <span class="badge bg-secondary">{{ out_of_stock_fabric_count }} out of stock</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Total Trims</h6>
+                        <h3 class="mb-0">{{ total_trims }}</h3>
+                        <small class="text-info">{{ total_trim_stock|floatformat:0 }} items in stock</small>
+                    </div>
+                    <div class="card-icon bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-thumbtack fa-2x"></i>
+                    </div>
+                </div>
+                {% if out_of_stock_trim_count > 0 %}
+                <div class="mt-2">
+                    <span class="badge bg-secondary">{{ out_of_stock_trim_count }} out of stock</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Finished Goods</h6>
+                        <h3 class="mb-0">{{ total_finished_goods }}</h3>
+                        <small class="text-info">{{ total_finished_stock|floatformat:0 }} units in stock</small>
+                        {% if pending_dispatch_count %}
+                        <div><a href="{% url 'inventory:dispatches' %}" class="badge bg-warning text-dark text-decoration-none">{{ pending_dispatch_count }} dispatch{{ pending_dispatch_count|pluralize:"es" }} not yet dispatched</a></div>
+                        {% endif %}
+                    </div>
+                    <div class="card-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-boxes fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Recent Activity</h6>
+                        <h3 class="mb-0">{{ recent_receipts|length }}</h3>
+                        <small class="text-info">Receipts this week</small>
+                    </div>
+                    <div class="card-icon bg-danger bg-opacity-10 text-danger">
+                        <i class="fas fa-exchange-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assets & Supplies -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Machines</h6>
+                        <h3 class="mb-0">{{ total_machines }}</h3>
+                        <small class="text-info">In service</small>
+                    </div>
+                    <div class="card-icon bg-secondary bg-opacity-10 text-secondary">
+                        <i class="fas fa-cogs fa-2x"></i>
+                    </div>
+                </div>
+                {% if machines_needing_attention > 0 %}
+                <div class="mt-2">
+                    <span class="badge bg-warning">{{ machines_needing_attention }} need attention</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Spare Parts</h6>
+                        <h3 class="mb-0">{{ total_spare_parts }}</h3>
+                        <small class="text-info">{{ spare_parts_stock|floatformat:0 }} units in stock</small>
+                    </div>
+                    <div class="card-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-tools fa-2x"></i>
+                    </div>
+                </div>
+                {% if low_spare_parts_count > 0 %}
+                <div class="mt-2">
+                    <span class="badge bg-warning">{{ low_spare_parts_count }} items low stock</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Stationery Items</h6>
+                        <h3 class="mb-0">{{ total_stationery_items }}</h3>
+                        <small class="text-info">{{ stationery_stock|floatformat:0 }} units in stock</small>
+                    </div>
+                    <div class="card-icon bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-pencil-ruler fa-2x"></i>
+                    </div>
+                </div>
+                {% if low_stationery_count > 0 %}
+                <div class="mt-2">
+                    <span class="badge bg-warning">{{ low_stationery_count }} items low stock</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <h6 class="mb-3">Stock Movement (Last 7 Days)</h6>
+                <canvas id="movementChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="mb-3">Quick Actions</h6>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'inventory:add_fabric' %}" class="btn btn-gradient btn-sm">
+                        <i class="fas fa-layer-group"></i> Add Fabric
+                    </a>
+                    <a href="{% url 'inventory:add_dispatch' %}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-shipping-fast"></i> New Dispatch
+                    </a>
+                    <a href="{% url 'inventory:fabric_list' %}" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-exchange-alt"></i> Add / Remove Fabric Stock
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Recent Receipts</h6>
+                    <a href="{% url 'inventory:goods_receipts' %}" class="btn btn-sm btn-link">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Receipt #</th>
+                                <th>Supplier</th>
+                                <th>Date</th>
+                                <th>Qty Added</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for receipt in recent_receipts %}
+                            <tr>
+                                <td>{{ receipt.receipt_number }}</td>
+                                <td>{{ receipt.supplier.supplier_name }}</td>
+                                <td>{{ receipt.receipt_date }}</td>
+                                <td class="text-success">+{{ receipt.total_quantity|floatformat:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center">No recent receipts</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Recent Dispatches</h6>
+                    <a href="{% url 'inventory:dispatches' %}" class="btn btn-sm btn-link">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Dispatch #</th>
+                                <th>Buyer</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dispatch in recent_dispatches %}
+                            <tr>
+                                <td>{{ dispatch.dispatch_number }}</td>
+                                <td>{{ dispatch.project.buyer.buyer_name }}</td>
+                                <td>{{ dispatch.dispatch_date }}</td>
+                                <td>
+                                    {% include 'inventory/includes/dispatch_status_badge.html' %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center">No recent dispatches</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Movement Chart
+    const ctx = document.getElementById('movementChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ movement_labels|safe }},
+            datasets: [{
+                label: 'Stock Movements',
+                data: {{ movement_data|safe }},
+                backgroundColor: '#667eea',
+                borderRadius: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

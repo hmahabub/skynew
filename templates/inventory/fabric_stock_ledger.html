@@ -1,0 +1,173 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ fabric.fabric_name }} - Stock Ledger - SkyTex ERP{% endblock %}
+
+{% block page_title %}Stock Ledger{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">{{ fabric.fabric_code }} - {{ fabric.fabric_name }}</h5>
+                <p class="text-muted small mb-0">Every bit of stock added to or removed from this fabric</p>
+                {% if fabric.supplier or fabric.project or fabric.purchase_order or fabric.buyer %}
+                <p class="text-muted small mb-0">
+                    {% if fabric.supplier %}Supplier: {{ fabric.supplier }}{% endif %}
+                    {% if fabric.project %} &middot; Project: {{ fabric.project }}{% endif %}
+                    {% if fabric.purchase_order %} &middot; PO: {{ fabric.purchase_order }}{% endif %}
+                    {% if fabric.buyer %} &middot; Buyer: {{ fabric.buyer }}{% endif %}
+                </p>
+                {% endif %}
+            </div>
+            <div>
+                <a href="{% url 'inventory:fabric_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Fabrics
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Current Stock</div>
+                <div class="h3 mb-0">{{ fabric.current_stock|floatformat:2 }}</div>
+                <div class="text-muted small">{{ fabric.get_unit_display }}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Lots In Stock</div>
+                <div class="h3 mb-0">{{ fabric.in_stock_lots|length }}</div>
+                <div class="text-muted small">&nbsp;</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Status</div>
+                <div class="h3 mb-0">
+                    {% if fabric.stock_status == 'in_stock' %}
+                        <span class="badge bg-success">In Stock</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Out of Stock</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-3">
+        <button type="button" class="btn btn-success btn-sm"
+                data-fabric-stock="add" data-fabric-id="{{ fabric.pk }}"
+                data-fabric-name="{{ fabric.fabric_code }} - {{ fabric.fabric_name }}"
+                data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}">
+            <i class="fas fa-plus"></i> Add Stock
+        </button>
+        <button type="button" class="btn btn-outline-danger btn-sm"
+                data-fabric-stock="remove" data-fabric-id="{{ fabric.pk }}"
+                data-fabric-name="{{ fabric.fabric_code }} - {{ fabric.fabric_name }}"
+                data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}"
+                {% if fabric.current_stock <= 0 %}disabled{% endif %}>
+            <i class="fas fa-minus"></i> Remove Stock
+        </button>
+    </div>
+
+    <div class="stat-card mb-3">
+        <h6 class="border-bottom pb-2">Lots</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Lot No.</th>
+                        <th>Received</th>
+                        <th>Length</th>
+                        <th>Used</th>
+                        <th>Remaining</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lot in lots %}
+                    <tr>
+                        <td>{{ lot.lot_number }}</td>
+                        <td>{{ lot.received_date }}</td>
+                        <td>{{ lot.length|floatformat:2 }}</td>
+                        <td>{{ lot.used_length|floatformat:2 }}</td>
+                        <td><strong>{{ lot.remaining_length|floatformat:2 }}</strong></td>
+                        <td>
+                            {% if lot.status == 'in_stock' %}
+                                <span class="badge bg-success">In Stock</span>
+                            {% elif lot.status == 'finished' %}
+                                <span class="badge bg-secondary">Fully Used</span>
+                            {% else %}
+                                <span class="badge bg-warning">{{ lot.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-3">No lots recorded yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Reference #</th>
+                        <th>Lot</th>
+                        <th>Quantity</th>
+                        <th>Balance After</th>
+                        <th>Issued To</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movement in movements %}
+                    <tr>
+                        <td>{{ movement.movement_date }}</td>
+                        <td>
+                            {% if movement.movement_type == 'receipt' %}
+                                <span class="badge bg-success">Stock In</span>
+                            {% elif movement.movement_type == 'issue' %}
+                                <span class="badge bg-info">Issued</span>
+                            {% elif movement.movement_type == 'adjustment' %}
+                                <span class="badge bg-warning">Removed</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ movement.get_movement_type_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ movement.reference_number }}</td>
+                        <td>{{ movement.fabric_roll.lot_number|default:"-" }}</td>
+                        <td class="{% if movement.quantity >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if movement.quantity >= 0 %}+{% endif %}{{ movement.quantity|floatformat:2 }}
+                        </td>
+                        <td><strong>{{ movement.balance_after|floatformat:2 }}</strong></td>
+                        <td>{{ movement.issued_to|default:"-" }}</td>
+                        <td class="text-muted small">{{ movement.notes|truncatechars:60 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-history fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No stock activity recorded yet for this fabric</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% include 'inventory/includes/fabric_stock_modals.html' %}
+{% endblock %}

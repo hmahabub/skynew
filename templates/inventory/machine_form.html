@@ -1,0 +1,152 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{% if machine %}Edit{% else %}Add{% endif %} Machine - SkyTex ERP{% endblock %}
+
+{% block page_title %}{% if machine %}Edit{% else %}Add{% endif %} Machine{% endblock %}
+
+{% block content %}
+<style>
+    .compact-form .form-label { margin-bottom: 0.15rem; font-size: 0.8rem; font-weight: 600; }
+    .compact-form .form-control, .compact-form .form-select { padding: 0.3rem 0.5rem; font-size: 0.85rem; height: calc(1.5em + 0.6rem + 2px); }
+    .compact-form textarea.form-control { height: auto; min-height: 50px; }
+    .compact-form .mb-3 { margin-bottom: 0.5rem !important; }
+    .compact-form h6 { margin: 0.4rem 0 0.4rem 0 !important; padding-bottom: 0.25rem !important; font-size: 0.85rem; }
+    .compact-form .btn { padding: 0.3rem 0.75rem; font-size: 0.85rem; }
+    .compact-card { padding: 1rem !important; }
+    .compact-form .alert { padding: 0.5rem 0.75rem; font-size: 0.8rem; margin-bottom: 0.5rem; }
+    .readonly-code { padding: 0.3rem 0.5rem; font-size: 0.85rem; background: #f1f3f5; border: 1px solid #dee2e6; border-radius: 0.25rem; font-weight: 600; }
+</style>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-12 col-lg-12">
+            <div class="stat-card compact-card">
+                <form method="post" class="compact-form">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Please fix the following errors:</strong>
+                            <ul class="mb-0 ps-3">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Machine Code *</label>
+                                {{ form.machine_code }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Machine Name *</label>
+                                {{ form.machine_name }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Machine Type *</label>
+                                {{ form.machine_type }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Brand</label>
+                                {{ form.brand }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Model Number</label>
+                                {{ form.model_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Serial Number</label>
+                                {{ form.serial_number }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Supplier</label>
+                                {{ form.supplier }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Department</label>
+                                {{ form.department }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Line</label>
+                                {{ form.line_number }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">Location</label>
+                                {{ form.location }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="border-bottom">Purchase &amp; Warranty</h6>
+
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Purchase Date</label>
+                                {{ form.purchase_date }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Purchase Cost</label>
+                                {{ form.purchase_cost }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Warranty Expiry</label>
+                                {{ form.warranty_expiry }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+
+                    <div class="mt-2 border-top pt-2">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> {% if machine %}Update{% else %}Create{% endif %} Machine
+                        </button>
+                        <a href="{% if machine %}{% url 'inventory:machine_detail' machine.pk %}{% else %}{% url 'inventory:machine_list' %}{% endif %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

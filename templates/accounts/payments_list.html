@@ -1,0 +1,110 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Payments - SkyTex ERP{% endblock %}
+
+{% block page_title %}Payment Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Payment Management</h5>
+                <p class="text-muted small mb-0">Manage all payments and receipts</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:add_payment' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Payment
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Payment Type</label>
+                <select name="type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for type_code, type_name in payment_types %}
+                    <option value="{{ type_code }}" {% if current_type == type_code %}selected{% endif %}>
+                        {{ type_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Payments Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Payment #</th>
+                        <th>Type</th>
+                        <th>Method</th>
+                        <th>From/To</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td><strong>{{ payment.payment_number }}</strong></td>
+                        <td>
+                            <span class="badge bg-{% if payment.payment_type == 'receivable' %}success{% else %}danger{% endif %}">
+                                {{ payment.get_payment_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ payment.get_payment_method_display }}</td>
+                        <td>
+                            {% if payment.payment_type == 'receivable' %}
+                                {{ payment.buyer.buyer_name|default:"-" }}
+                            {% else %}
+                                {{ payment.supplier.supplier_name|default:"-" }}
+                            {% endif %}
+                        </td>
+                        <td>${{ payment.amount|floatformat:2 }}</td>
+                        <td>{{ payment.payment_date }}</td>
+                        <td>
+                            <span class="badge bg-{% if payment.status == 'completed' %}success{% elif payment.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                {{ payment.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="#" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-hand-holding-usd fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No payments found</p>
+                            <a href="{% url 'accounts:add_payment' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Payment
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

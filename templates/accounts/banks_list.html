@@ -1,0 +1,101 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Bank Accounts - SkyTex ERP{% endblock %}
+
+{% block page_title %}Bank Accounts{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Bank Account Management</h5>
+                <p class="text-muted small mb-0">Manage all bank accounts</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:bank_transactions_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-exchange-alt"></i> Transactions
+                </a>
+                <a href="{% url 'accounts:add_bank' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Bank Account
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for bank in banks %}
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h5 class="mb-1">{{ bank.account_name }}</h5>
+                        <span class="badge bg-primary">{{ bank.get_account_type_display }}</span>
+                    </div>
+                    <div>
+                        {% if bank.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <small class="text-muted">Account Number:</small>
+                    <strong>{{ bank.account_number }}</strong>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Bank:</small>
+                    <strong>{{ bank.bank_name }}</strong>
+                </div>
+                <div class="mb-2">
+                    <small class="text-muted">Branch:</small>
+                    <strong>{{ bank.branch_name }}</strong>
+                </div>
+                
+                <hr>
+                
+                <div class="row text-center">
+                    <div class="col-6">
+                        <small class="text-muted">Opening Balance</small>
+                        <h6>${{ bank.opening_balance|floatformat:2 }}</h6>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Current Balance</small>
+                        <h6 class="text-primary">${{ bank.current_balance|floatformat:2 }}</h6>
+                    </div>
+                </div>
+                
+                {% if bank.notes %}
+                <div class="mt-2">
+                    <small class="text-muted">Notes:</small>
+                    <p class="text-muted small mb-0">{{ bank.notes }}</p>
+                </div>
+                {% endif %}
+                
+                <div class="mt-3">
+                    <div class="btn-group btn-group-sm w-100">
+                        <a href="{% url 'accounts:edit_bank' bank.pk %}" class="btn btn-outline-warning">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="stat-card text-center py-5">
+                <i class="fas fa-university fa-4x text-muted mb-3"></i>
+                <h5>No Bank Accounts Found</h5>
+                <p class="text-muted">Start by adding your first bank account</p>
+                <a href="{% url 'accounts:add_bank' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Bank Account
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

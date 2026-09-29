@@ -1,0 +1,179 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Create Production Issue - SkyTex ERP{% endblock %}
+
+{% block page_title %}Create Production Issue{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="stat-card">
+                <form method="post" id="issueForm">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Issue Number *</label>
+                                {{ form.issue_number }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Project *</label>
+                                {{ form.project }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Issue Date *</label>
+                                {{ form.issue_date }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Department</label>
+                                {{ form.department }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Production Line *</label>
+                                {{ form.production_line }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="border-bottom pb-2 mb-3">Issue Items</h6>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th>Fabric</th>
+                                    <th>Fabric Roll</th>
+                                    <th>Trim</th>
+                                    <th>Quantity Requested</th>
+                                    <th>Quantity Issued</th>
+                                    <th>Notes</th>
+                                    <th>
+                                        <button type="button" class="btn btn-sm btn-success" onclick="addRow()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsBody">
+                                <tr>
+                                    <td>
+                                        <select name="fabric_ids[]" class="form-select">
+                                            <option value="">Select Fabric</option>
+                                            {% for fabric in fabrics %}
+                                            <option value="{{ fabric.id }}">{{ fabric.fabric_code }} - {{ fabric.fabric_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="fabric_roll_ids[]" class="form-select">
+                                            <option value="">Select Roll</option>
+                                            {% for roll in fabric_rolls %}
+                                            <option value="{{ roll.id }}">{{ roll.roll_number }} ({{ roll.remaining_length|floatformat:0 }} {{ roll.fabric.unit }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="trim_ids[]" class="form-select">
+                                            <option value="">Select Trim</option>
+                                            {% for trim in trims %}
+                                            <option value="{{ trim.id }}">{{ trim.trim_code }} - {{ trim.trim_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantities_requested[]" class="form-control" step="0.01" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantities_issued[]" class="form-control" step="0.01" min="0">
+                                    </td>
+                                    <td>
+                                        <input type="text" name="notes[]" class="form-control" placeholder="Notes">
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                    
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> Create Issue
+                        </button>
+                        <a href="{% url 'inventory:production_issues' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function addRow() {
+        const tbody = document.getElementById('itemsBody');
+        const firstRow = tbody.querySelector('tr');
+        const newRow = firstRow.cloneNode(true);
+        
+        newRow.querySelectorAll('input').forEach(input => input.value = '');
+        newRow.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+        
+        tbody.appendChild(newRow);
+    }
+    
+    function removeRow(button) {
+        const tbody = document.getElementById('itemsBody');
+        if (tbody.querySelectorAll('tr').length > 1) {
+            button.closest('tr').remove();
+        } else {
+            alert('At least one item row is required.');
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const issueField = document.getElementById('id_issue_number');
+        if (!issueField.value) {
+            const today = new Date();
+            const dateStr = today.getFullYear().toString().slice(-2) + 
+                           String(today.getMonth() + 1).padStart(2, '0') + 
+                           String(today.getDate()).padStart(2, '0');
+            const count = Math.floor(Math.random() * 1000);
+            issueField.value = `PI-${dateStr}-${String(count).padStart(4, '0')}`;
+        }
+    });
+</script>
+{% endblock %}

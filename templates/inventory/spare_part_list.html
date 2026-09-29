@@ -1,0 +1,154 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Spare Parts - SkyTex ERP{% endblock %}
+
+{% block page_title %}Spare Parts{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Spare Parts</h5>
+                <p class="text-muted small mb-0">Machine spare parts stock and consumption</p>
+            </div>
+            <div>
+                <a href="{% url 'inventory:add_spare_part' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Spare Part
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Search</label>
+                <input type="text" name="search" class="form-control" placeholder="Search by name..." value="{{ search|default_if_none:'' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Category</label>
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for code, label in categories %}
+                    <option value="{{ code }}" {% if current_category == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Stock Status</label>
+                <select name="stock_status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="low" {% if current_stock_status == 'low' %}selected{% endif %}>Low Stock</option>
+                    <option value="normal" {% if current_stock_status == 'normal' %}selected{% endif %}>Normal</option>
+                    <option value="overstock" {% if current_stock_status == 'overstock' %}selected{% endif %}>Overstock</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{% url 'inventory:spare_part_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-undo"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Compatible Machine</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for part in spare_parts %}
+                    <tr>
+                        <td><strong>{{ part.part_code }}</strong></td>
+                        <td>{{ part.part_name }}</td>
+                        <td><span class="badge bg-info">{{ part.get_category_display }}</span></td>
+                        <td>{{ part.get_compatible_machine_type_display|default:"-" }}</td>
+                        <td>
+                            <strong>{{ part.current_stock }}</strong>
+                            <small class="text-muted">{{ part.unit }}</small>
+                        </td>
+                        <td>
+                            {% if part.is_low_stock %}
+                                <span class="badge bg-danger">Low Stock</span>
+                            {% elif part.stock_status == 'overstock' %}
+                                <span class="badge bg-warning">Overstock</span>
+                            {% else %}
+                                <span class="badge bg-success">Normal</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'inventory:add_spare_part_stock' part.pk %}" class="btn btn-outline-success" title="Add Stock">
+                                    <i class="fas fa-plus"></i>
+                                </a>
+                                <a href="{% url 'inventory:record_spare_part_consumption' part.pk %}" class="btn btn-outline-info" title="Record Consumption">
+                                    <i class="fas fa-minus"></i>
+                                </a>
+                                <a href="{% url 'inventory:spare_part_stock_ledger' part.pk %}" class="btn btn-outline-primary" title="Stock History">
+                                    <i class="fas fa-history"></i>
+                                </a>
+                                <a href="{% url 'inventory:edit_spare_part' part.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-cog fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No spare parts found</p>
+                            <a href="{% url 'inventory:add_spare_part' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Spare Part
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if spare_parts.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if spare_parts.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ spare_parts.previous_page_number }}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                {% for num in spare_parts.paginator.page_range %}
+                <li class="page-item {% if spare_parts.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endfor %}
+                {% if spare_parts.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ spare_parts.next_page_number }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Financial Reports - SkyTex ERP{% endblock %}
+
+{% block page_title %}Financial Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Income Statement -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h5 class="mb-3">Income Statement</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <tr>
+                            <td><strong>Revenue</strong></td>
+                            <td class="text-end"><strong>${{ total_revenue|floatformat:2 }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Cost of Goods Sold</td>
+                            <td class="text-end">${{ total_cogs|floatformat:2 }}</td>
+                        </tr>
+                        <tr class="border-top">
+                            <td><strong>Gross Profit</strong></td>
+                            <td class="text-end">
+                                <strong class="{% if gross_profit > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ gross_profit|floatformat:2 }}
+                                </strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Gross Margin</td>
+                            <td class="text-end">
+                                <span class="badge bg-{% if gross_margin > 30 %}success{% elif gross_margin > 15 %}warning{% else %}danger{% endif %}">
+                                    {{ gross_margin|floatformat:1 }}%
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- LC & Loan Exposure -->
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h5 class="mb-3">LC &amp; Loan Exposure</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <tr>
+                            <td>Total LC Amount</td>
+                            <td class="text-end">${{ total_lc_amount|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>Total LC Paid</td>
+                            <td class="text-end text-success">${{ total_lc_paid|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total LC Outstanding</strong></td>
+                            <td class="text-end"><strong class="text-danger">${{ total_lc_outstanding|floatformat:2 }}</strong></td>
+                        </tr>
+                        <tr class="border-top">
+                            <td>Total Loan Outstanding</td>
+                            <td class="text-end">${{ total_loan_outstanding|floatformat:2 }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Company-wide rollup across all active projects -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h5 class="mb-3">Cost Rollup (All Active Projects)</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <tr>
+                            <td>Total Order Value</td>
+                            <td class="text-end">${{ total_order_value|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>Total PO Cost</td>
+                            <td class="text-end">${{ total_po_cost|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Other Cost</td>
+                            <td class="text-end">${{ total_other_cost|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Loan Interest</td>
+                            <td class="text-end">${{ total_loan_interest|floatformat:2 }}</td>
+                        </tr>
+                        <tr class="border-top">
+                            <td><strong>Total Costs</strong></td>
+                            <td class="text-end"><strong>${{ total_costs|floatformat:2 }}</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h5 class="mb-3">Overall Profitability</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <tr>
+                            <td>Total Revenue (Paid Invoices, All Time)</td>
+                            <td class="text-end">${{ total_revenue_all_time|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Order Value</td>
+                            <td class="text-end">${{ total_order_value|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Costs</td>
+                            <td class="text-end">${{ total_costs|floatformat:2 }}</td>
+                        </tr>
+                        <tr class="border-top">
+                            <td><strong>Overall Estimated Profit</strong></td>
+                            <td class="text-end">
+                                <strong class="{% if overall_estimated_profit > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    ${{ overall_estimated_profit|floatformat:2 }}
+                                </strong>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

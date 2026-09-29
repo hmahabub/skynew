@@ -1,0 +1,206 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Employee Details - SkyTex ERP{% endblock %}
+
+{% block page_title %}Employee Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-4">
+            <!-- Profile Card -->
+            <div class="stat-card text-center">
+                {% if employee.profile_picture %}
+                    <img src="{{ employee.profile_picture.url }}" class="rounded-circle img-thumbnail" width="150" height="150">
+                {% else %}
+                    <div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:150px;height:150px;font-size:60px;">
+                        {{ employee.full_name|first|upper }}
+                    </div>
+                {% endif %}
+                <h5 class="mt-3 mb-0">{{ employee.full_name }}</h5>
+                <p class="text-muted small">{{ employee.employee_id }}</p>
+                
+                <div class="mt-3">
+                    <span class="badge bg-{% if employee.is_active %}success{% else %}danger{% endif %} badge-status">
+                        {% if employee.is_active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                    <span class="badge bg-info badge-status">{{ employee.get_skill_category_display }}</span>
+                </div>
+                
+                <hr>
+                
+                <div class="text-start">
+                    <p><i class="fas fa-building text-primary"></i> {{ employee.department.name|default:"-" }}</p>
+                    <p><i class="fas fa-briefcase text-primary"></i> {{ employee.designation.name|default:"-" }}</p>
+                    <p><i class="fas fa-clock text-primary"></i> {{ employee.get_shift_display }}</p>
+                    <p><i class="fas fa-calendar-alt text-primary"></i> Joined: {{ employee.joining_date }}</p>
+                    <p><i class="fas fa-phone text-primary"></i> {{ employee.phone_number }}</p>
+                    <p><i class="fas fa-envelope text-primary"></i> {{ employee.email|default:"-" }}</p>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="stat-card">
+                <h6 class="mb-3">Quick Actions</h6>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'hr:edit_employee' employee.pk %}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit"></i> Edit Employee
+                    </a>
+                    <a href="#" class="btn btn-outline-success">
+                        <i class="fas fa-calendar-check"></i> Mark Attendance
+                    </a>
+                    <a href="#" class="btn btn-outline-info">
+                        <i class="fas fa-file-invoice"></i> Generate Payroll
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <!-- Attendance Summary -->
+            <div class="stat-card">
+                <h6 class="mb-3">Attendance (Last 30 Days)</h6>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h4 class="text-success">{{ recent_attendance|length }}</h4>
+                        <small class="text-muted">Total Days</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-primary">
+                            {{ recent_attendance|dictsort:"status"|length }}
+                        </h4>
+                        <small class="text-muted">Present</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-danger">
+                            {{ recent_attendance|dictsort:"status"|length }}
+                        </h4>
+                        <small class="text-muted">Absent</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Leave History -->
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Leave History</h6>
+                    <a href="#" class="btn btn-sm btn-link">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Days</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for leave in leaves %}
+                            <tr>
+                                <td>{{ leave.get_leave_type_display }}</td>
+                                <td>{{ leave.start_date }}</td>
+                                <td>{{ leave.end_date }}</td>
+                                <td>{{ leave.total_days }}</td>
+                                <td>
+                                    <span class="badge bg-{% if leave.status == 'approved' %}success{% elif leave.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                        {{ leave.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No leave records</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Production Output -->
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Recent Production Output</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Style</th>
+                                <th>Quantity</th>
+                                <th>Defective</th>
+                                <th>Quality Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for production in productions %}
+                            <tr>
+                                <td>{{ production.date }}</td>
+                                <td>{{ production.style_number }}</td>
+                                <td>{{ production.quantity_produced }}</td>
+                                <td>{{ production.defective_quantity }}</td>
+                                <td>
+                                    <span class="badge bg-{% if production.quality_rate >= 95 %}success{% elif production.quality_rate >= 80 %}warning{% else %}danger{% endif %}">
+                                        {{ production.quality_rate|floatformat:1 }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No production records</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Payroll History -->
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Payroll History</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Basic Pay</th>
+                                <th>Earnings</th>
+                                <th>Deductions</th>
+                                <th>Net Payable</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payroll in payrolls %}
+                            <tr>
+                                <td>{{ payroll.month }}/{{ payroll.year }}</td>
+                                <td>${{ payroll.basic_pay|floatformat:2 }}</td>
+                                <td>${{ payroll.total_earnings|floatformat:2 }}</td>
+                                <td>${{ payroll.total_deductions|floatformat:2 }}</td>
+                                <td><strong>${{ payroll.net_payable|floatformat:2 }}</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if payroll.status == 'paid' %}success{% elif payroll.status == 'processed' %}info{% elif payroll.status == 'approved' %}warning{% else %}secondary{% endif %}">
+                                        {{ payroll.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center">No payroll records</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Generate Payroll - SkyTex ERP{% endblock %}
+
+{% block page_title %}Generate Payroll{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <h5 class="mb-3">Generate Monthly Payroll</h5>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    This will generate payroll for all active employees for the selected month, using each
+                    employee's default salary (basic + house rent + medical + transport). Days absent
+                    without an approved leave are automatically deducted, and overtime/bonus can be added,
+                    all on the next screen. You'll get a chance to review and edit everything before anything
+                    is saved.
+                </div>
+
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Month *</label>
+                                <select name="month" class="form-select" required>
+                                    <option value="">Select Month</option>
+                                    {% for m in months %}
+                                    <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>
+                                        {{ m }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Year *</label>
+                                <select name="year" class="form-select" required>
+                                    <option value="">Select Year</option>
+                                    {% for year in years %}
+                                        <option value="{{ year }}"
+                                            {% if request.GET.year == year|stringformat:"s" or year == current_year %}
+                                                selected
+                                            {% endif %}>
+                                            {{ year }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Generating payroll for a month will overwrite existing payroll data for that month.
+                    </div>
+
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-calculator"></i> Continue (Manual Entry)
+                        </button>
+                        <a href="{% url 'hr:payroll_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="mb-2"><i class="fas fa-file-excel"></i> Or use Excel</h6>
+                    <p class="text-muted small mb-3">
+                        Download a spreadsheet pre-filled with every active employee's default salary,
+                        attendance summary (present/absent/paid leave), and suggested absence deduction
+                        and overtime amount for the month/year selected above. Edit the "Salary Amount",
+                        "Absence Deduction", "Overtime Amount", "Bonus", and "Note" columns, then upload it
+                        here to review and confirm.
+                    </p>
+
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <button type="submit"
+                                formaction="{% url 'hr:download_payroll_template' %}"
+                                formmethod="get"
+                                class="btn btn-outline-primary">
+                            <i class="fas fa-download"></i> Download Excel Template
+                        </button>
+                    </div>
+
+                    <div class="row align-items-end">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label">Upload Filled Template</label>
+                                <input type="file" name="excel_file" accept=".xlsx" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <button type="submit"
+                                        formaction="{% url 'hr:upload_payroll_excel' %}"
+                                        class="btn btn-outline-success w-100">
+                                    <i class="fas fa-upload"></i> Upload &amp; Review
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

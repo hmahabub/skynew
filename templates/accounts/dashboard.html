@@ -1,0 +1,228 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Accounts Dashboard - SkyTex ERP{% endblock %}
+
+{% block page_title %}Accounts Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Monthly Sales</h6>
+                        <h3 class="mb-0">${{ monthly_sales|floatformat:0 }}</h3>
+                        <small class="text-success">Current Month</small>
+                    </div>
+                    <div class="card-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Accounts Receivable</h6>
+                        <h3 class="mb-0">${{ receivables|floatformat:0 }}</h3>
+                        <small class="text-warning">{{ overdue_invoices }} Overdue</small>
+                    </div>
+                    <div class="card-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-hand-holding-usd fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Accounts Payable</h6>
+                        <h3 class="mb-0">${{ payables|floatformat:0 }}</h3>
+                        <small class="text-danger">Due to Suppliers</small>
+                    </div>
+                    <div class="card-icon bg-danger bg-opacity-10 text-danger">
+                        <i class="fas fa-money-bill-wave fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Cash Balance</h6>
+                        <h3 class="mb-0">${{ cash_balance|floatformat:0 }}</h3>
+                        <small class="text-info">Available Cash</small>
+                    </div>
+                    <div class="card-icon bg-info bg-opacity-10 text-info">
+                        <i class="fas fa-wallet fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <h6 class="mb-3">Monthly Sales Trend</h6>
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6 class="mb-3">Quick Stats</h6>
+                <div class="mb-3">
+                    <small class="text-muted">Total Buyers</small>
+                    <h5>{{ total_buyers }}</h5>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">Total Suppliers</small>
+                    <h5>{{ total_suppliers }}</h5>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">Active Projects</small>
+                    <h5>{{ total_projects }}</h5>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <h6 class="mb-3">Quick Actions</h6>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'accounts:add_invoice' %}" class="btn btn-gradient btn-sm">
+                        <i class="fas fa-file-invoice"></i> Create Invoice
+                    </a>
+                    <a href="{% url 'accounts:add_payment' %}" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-hand-holding-usd"></i> Record Payment
+                    </a>
+                    <a href="{% url 'accounts:add_lc' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-file-contract"></i> Add LC
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Recent Invoices</h6>
+                    <a href="{% url 'accounts:invoices_list' %}" class="btn btn-sm btn-link">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Buyer</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in recent_invoices %}
+                            <tr>
+                                <td>{{ invoice.invoice_number }}</td>
+                                <td>{{ invoice.buyer.buyer_name }}</td>
+                                <td>${{ invoice.net_amount|floatformat:2 }}</td>
+                                <td>
+                                    <span class="badge bg-{% if invoice.status == 'paid' %}success{% elif invoice.status == 'overdue' %}danger{% elif invoice.status == 'pending' %}warning{% else %}secondary{% endif %}">
+                                        {{ invoice.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center">No recent invoices</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Recent Payments</h6>
+                    <a href="{% url 'accounts:payments_list' %}" class="btn btn-sm btn-link">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Payment</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in recent_payments %}
+                            <tr>
+                                <td>{{ payment.payment_number }}</td>
+                                <td>{{ payment.get_payment_type_display }}</td>
+                                <td>${{ payment.amount|floatformat:2 }}</td>
+                                <td>
+                                    <span class="badge bg-{% if payment.status == 'completed' %}success{% else %}warning{% endif %}">
+                                        {{ payment.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center">No recent payments</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Sales Chart
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ months|safe }},
+            datasets: [{
+                label: 'Monthly Sales ($)',
+                data: {{ monthly_sales_data|safe }},
+                backgroundColor: '#667eea',
+                borderRadius: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

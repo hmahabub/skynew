@@ -1,0 +1,166 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Machines - SkyTex ERP{% endblock %}
+
+{% block page_title %}Machines{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Machines</h5>
+                <p class="text-muted small mb-0">Garment machinery asset register</p>
+            </div>
+            <div>
+                <a href="{% url 'inventory:add_machine' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Machine
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Search</label>
+                <input type="text" name="search" class="form-control" placeholder="Code, name, brand, serial..." value="{{ search|default_if_none:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Type</label>
+                <select name="type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for code, label in machine_types %}
+                    <option value="{{ code }}" {% if current_type == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    {% for code, label in statuses %}
+                    <option value="{{ code }}" {% if current_status == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Department</label>
+                <select name="department" class="form-select">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.pk }}" {% if current_department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{% url 'inventory:machine_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-undo"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Brand</th>
+                        <th>Department</th>
+                        <th>Line</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for machine in machines %}
+                    <tr>
+                        <td><strong>{{ machine.machine_code }}</strong></td>
+                        <td>{{ machine.machine_name }}</td>
+                        <td><span class="badge bg-info">{{ machine.get_machine_type_display }}</span></td>
+                        <td>{{ machine.brand|default:"-" }}</td>
+                        <td>{{ machine.department.name|default:"-" }}</td>
+                        <td>{{ machine.line_number|default:"-" }}</td>
+                        <td>
+                            {% if machine.status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                            {% elif machine.status == 'idle' %}
+                                <span class="badge bg-secondary">Idle</span>
+                            {% elif machine.status == 'under_maintenance' %}
+                                <span class="badge bg-warning">Under Maintenance</span>
+                            {% elif machine.status == 'broken_down' %}
+                                <span class="badge bg-danger">Broken Down</span>
+                            {% elif machine.status == 'sold' %}
+                                <span class="badge bg-dark">Sold</span>
+                            {% elif machine.status == 'scrapped' %}
+                                <span class="badge bg-dark">Scrapped</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ machine.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'inventory:machine_detail' machine.pk %}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'inventory:edit_machine' machine.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-cogs fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No machines found</p>
+                            <a href="{% url 'inventory:add_machine' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Machine
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if machines.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if machines.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ machines.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                {% for num in machines.paginator.page_range %}
+                <li class="page-item {% if machines.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+                {% endfor %}
+                {% if machines.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ machines.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

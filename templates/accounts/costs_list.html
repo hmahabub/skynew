@@ -1,0 +1,101 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Costs - SkyTex ERP{% endblock %}
+
+{% block page_title %}Costs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Actual Cost Ledger</h5>
+                <p class="text-muted small mb-0">PO Cost and Other Cost entries, per project</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:add_cost' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Cost
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Project</label>
+                <select name="project" class="form-select">
+                    <option value="">All Projects</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" {% if current_project == project.id|stringformat:"s" %}selected{% endif %}>
+                        {{ project.project_number }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">Cost Type</label>
+                <select name="cost_type" class="form-select">
+                    <option value="">All Types</option>
+                    {% for type_code, type_name in cost_types %}
+                    <option value="{{ type_code }}" {% if current_cost_type == type_code %}selected{% endif %}>
+                        {{ type_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Project</th>
+                        <th>Type</th>
+                        <th>PO</th>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Payment Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cost in costs %}
+                    <tr>
+                        <td><a href="{% url 'accounts:project_detail' cost.project.pk %}">{{ cost.project.project_number }}</a></td>
+                        <td><span class="badge bg-secondary">{{ cost.get_cost_type_display }}</span></td>
+                        <td>{{ cost.purchase_order.po_number|default:"Other" }}</td>
+                        <td>{{ cost.cost_date }}</td>
+                        <td class="text-muted small">{{ cost.description|truncatechars:30 }}</td>
+                        <td>{{ cost.currency }} {{ cost.amount|floatformat:2 }}</td>
+                        <td>
+                            <span class="badge bg-{% if cost.payment_status == 'paid' %}success{% elif cost.payment_status == 'partial' %}warning{% else %}danger{% endif %}">
+                                {{ cost.get_payment_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-receipt fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No costs recorded</p>
+                            <a href="{% url 'accounts:add_cost' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Cost
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Dashboard - SkyTex ERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Total Employees</h6>
+                        <h3 class="mb-0">{{ total_employees }}</h3>
+                        <small class="text-success">Active Workforce</small>
+                    </div>
+                    <div class="card-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Production Staff</h6>
+                        <h3 class="mb-0">{{ total_production_staff }}</h3>
+                        <small class="text-success">On Production Lines</small>
+                    </div>
+                    <div class="card-icon bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-industry"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Monthly Production</h6>
+                        <h3 class="mb-0">{{ monthly_production|default:"0" }}</h3>
+                        <small class="text-info">Pieces Produced</small>
+                    </div>
+                    <div class="card-icon bg-info bg-opacity-10 text-info">
+                        <i class="fas fa-tshirt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Active Projects</h6>
+                        <h3 class="mb-0">{{ active_styles }}</h3>
+                        <small class="text-warning">In Production</small>
+                    </div>
+                    <div class="card-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3">Production Overview (Last 7 Days)</h6>
+                <canvas id="productionChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h6 class="mb-3">Financial Summary</h6>
+                <div class="mb-3">
+                    <small class="text-muted">Total Sales</small>
+                    <h5 class="mb-0 text-success">${{ total_sales|floatformat:2|default:"0" }}</h5>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">Pending Payments</small>
+                    <h5 class="mb-0 text-danger">${{ pending_payments|floatformat:2|default:"0" }}</h5>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h6 class="mb-3">Inventory Status</h6>
+                <div class="mb-3">
+                    <small class="text-muted">Fabric Stock</small>
+                    <h5 class="mb-0">{{ fabric_stock|floatformat:0|default:"0" }} Meters</h5>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted">Low Stock Alerts</small>
+                    <h5 class="mb-0 text-warning">{{ low_stock_items }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3">Recent Employees</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Department</th>
+                                <th>Join Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for employee in recent_employees %}
+                            <tr>
+                                <td>{{ employee.employee_id }}</td>
+                                <td>{{ employee.full_name }}</td>
+                                <td>{{ employee.department.name|default:"-" }}</td>
+                                <td>{{ employee.joining_date }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No employees found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3">Recent Orders/Projects</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Project No.</th>
+                                <th>Buyer</th>
+                                <th>Quantity</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in recent_styles %}
+                            <tr>
+                                <td>{{ project.project_number }}</td>
+                                <td>{{ project.buyer.buyer_name }}</td>
+                                <td>{{ project.order_quantity }}</td>
+                                <td>
+                                    <span class="badge bg-{% if project.status == 'order' %}success{% elif project.status == 'production' %}warning{% else %}secondary{% endif %}">
+                                        {{ project.get_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center">No projects found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const ctx = document.getElementById('productionChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: {{ production_labels|safe }},
+            datasets: [{
+                label: 'Production (Pieces)',
+                data: {{ production_data|safe }},
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
+

@@ -1,0 +1,98 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Letters of Credit - SkyTex ERP{% endblock %}
+
+{% block page_title %}Letters of Credit{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Letters of Credit</h5>
+                <p class="text-muted small mb-0">Manage LCs, payments and loans</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:add_lc' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add LC
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    {% for status_code, status_name in statuses %}
+                    <option value="{{ status_code }}" {% if current_status == status_code %}selected{% endif %}>
+                        {{ status_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>LC #</th>
+                        <th>Project</th>
+                        <th>Bank</th>
+                        <th>LC Amount</th>
+                        <th>Outstanding</th>
+                        <th>Expiry</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lc in lcs %}
+                    <tr>
+                        <td><strong>{{ lc.lc_number }}</strong></td>
+                        <td>{{ lc.project.project_number }}</td>
+                        <td>{{ lc.bank_name }}</td>
+                        <td>{{ lc.currency }} {{ lc.lc_amount|floatformat:2 }}</td>
+                        <td class="{% if lc.lc_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ lc.lc_outstanding|floatformat:2 }}
+                        </td>
+                        <td>{{ lc.expiry_date }}</td>
+                        <td>
+                            <span class="badge bg-{% if lc.status == 'active' %}success{% elif lc.status == 'utilized' %}info{% elif lc.status == 'expired' %}warning{% else %}danger{% endif %}">
+                                {{ lc.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'accounts:lc_detail' lc.pk %}" class="btn btn-outline-primary btn-sm" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-file-contract fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No letters of credit found</p>
+                            <a href="{% url 'accounts:add_lc' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First LC
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

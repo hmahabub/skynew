@@ -1,0 +1,103 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Dispatches - SkyTex ERP{% endblock %}
+
+{% block page_title %}Dispatch Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Dispatch Management</h5>
+                <p class="text-muted small mb-0">Pending &rarr; On-going &rarr; Dispatched. Marking a dispatch Dispatched needs admin approval, and that is when stock is deducted.</p>
+            </div>
+            <div>
+                <a href="{% url 'inventory:add_dispatch' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> New Dispatch
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    {% for status_code, status_name in statuses %}
+                    <option value="{{ status_code }}" {% if current_status == status_code %}selected{% endif %}>
+                        {{ status_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Dispatches Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Dispatch #</th>
+                        <th>Project</th>
+                        <th>Buyer</th>
+                        <th>Date</th>
+                        <th>Cartons</th>
+                        <th>Quantity</th>
+                        <th>Shipping Line</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dispatch in dispatches %}
+                    <tr>
+                        <td><strong>{{ dispatch.dispatch_number }}</strong></td>
+                        <td>{{ dispatch.project.project_number }}</td>
+                        <td>{{ dispatch.project.buyer.buyer_name }}</td>
+                        <td>{{ dispatch.dispatch_date }}</td>
+                        <td>{{ dispatch.total_cartons }}</td>
+                        <td>{{ dispatch.total_quantity }}</td>
+                        <td>{{ dispatch.shipping_line }}</td>
+                        <td>
+                            {% include 'inventory/includes/dispatch_status_badge.html' %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'inventory:dispatch_detail' dispatch.pk %}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'inventory:edit_dispatch' dispatch.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <i class="fas fa-shipping-fast fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No dispatches found</p>
+                            <a href="{% url 'inventory:add_dispatch' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Create First Dispatch
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

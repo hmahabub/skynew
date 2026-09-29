@@ -1,0 +1,81 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Record Consumption - {{ spare_part.part_name }} - SkyTex ERP{% endblock %}
+
+{% block page_title %}Record Consumption{% endblock %}
+
+{% block content %}
+<style>
+    .compact-form .form-label { margin-bottom: 0.15rem; font-size: 0.8rem; font-weight: 600; }
+    .compact-form .form-control, .compact-form .form-select { padding: 0.3rem 0.5rem; font-size: 0.85rem; }
+    .compact-form textarea.form-control { height: auto; min-height: 60px; }
+    .compact-form .mb-3 { margin-bottom: 0.75rem !important; }
+    .compact-form .btn { padding: 0.3rem 0.75rem; font-size: 0.85rem; }
+    .compact-card { padding: 1rem !important; }
+    .compact-form .alert { padding: 0.5rem 0.75rem; font-size: 0.8rem; margin-bottom: 0.5rem; }
+</style>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="stat-card compact-card">
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="fw-bold">{{ spare_part.part_code }} - {{ spare_part.part_name }}</div>
+                    <div class="text-muted small">Currently {{ spare_part.current_stock }} {{ spare_part.unit }} in stock</div>
+                </div>
+
+                <form method="post" class="compact-form">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Please fix the following errors:</strong>
+                            <ul class="mb-0 ps-3">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Department *</label>
+                        {{ form.department }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Machine</label>
+                        {{ form.machine }}
+                        <div class="form-text">{{ form.machine.help_text }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Quantity *</label>
+                        {{ form.quantity }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Date *</label>
+                        {{ form.consumption_date }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="mt-2 border-top pt-2">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-minus"></i> Record Consumption
+                        </button>
+                        <a href="{% url 'inventory:spare_part_stock_ledger' spare_part.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ finished_goods.style }} - Stock Ledger - SkyTex ERP{% endblock %}
+
+{% block page_title %}Stock Ledger{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">{{ finished_goods.style }} - {{ finished_goods.size }} / {{ finished_goods.color }}</h5>
+                <p class="text-muted small mb-0">Every stock addition and approved dispatch recorded against this product</p>
+            </div>
+            <div>
+                <a href="{% url 'inventory:finished_goods_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Finished Goods
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">In Stock</div>
+                <div class="h3 mb-0">{{ finished_goods.quantity_in_stock }}</div>
+                <div class="text-muted small">units</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Pending Dispatch</div>
+                <div class="h3 mb-0">{{ finished_goods.pending_dispatch_qty }}</div>
+                <div class="text-muted small">units &middot; {{ finished_goods.available_stock }} available</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Status</div>
+                <div class="h3 mb-0">
+                    {% if finished_goods.quantity_in_stock <= 0 %}
+                        <span class="badge bg-secondary">Out of Stock</span>
+                    {% elif finished_goods.available_stock <= 0 %}
+                        <span class="badge bg-warning text-dark">All Reserved</span>
+                    {% else %}
+                        <span class="badge bg-success">In Stock</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-3">
+        <a href="{% url 'inventory:add_finished_goods_stock' finished_goods.pk %}" class="btn btn-gradient btn-sm">
+            <i class="fas fa-plus"></i> Add Stock
+        </a>
+        <a href="{% url 'inventory:add_dispatch' %}" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-truck"></i> New Dispatch
+        </a>
+    </div>
+
+    {% if pending_dispatch_items %}
+    <div class="stat-card mb-3">
+        <h6 class="border-bottom pb-2">On Pending Dispatches</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Dispatch #</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Carton #</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pending_dispatch_items %}
+                    <tr>
+                        <td><a href="{% url 'inventory:dispatch_detail' item.dispatch.pk %}">{{ item.dispatch.dispatch_number }}</a></td>
+                        <td>{{ item.dispatch.dispatch_date }}</td>
+                        <td>{% include 'inventory/includes/dispatch_status_badge.html' with dispatch=item.dispatch %}</td>
+                        <td>{{ item.carton_number }}</td>
+                        <td>{{ item.quantity }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Reference #</th>
+                        <th>Quantity</th>
+                        <th>Balance After</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movement in movements %}
+                    <tr>
+                        <td>{{ movement.movement_date }}</td>
+                        <td>
+                            {% if movement.movement_type == 'production' %}
+                                <span class="badge bg-success">Production / Stock In</span>
+                            {% elif movement.movement_type == 'dispatch' %}
+                                <span class="badge bg-info">Dispatch</span>
+                            {% elif movement.movement_type == 'adjustment' %}
+                                <span class="badge bg-warning">Removed</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ movement.get_movement_type_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ movement.reference_number }}</td>
+                        <td class="{% if movement.quantity >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if movement.quantity >= 0 %}+{% endif %}{{ movement.quantity|floatformat:0 }}
+                        </td>
+                        <td><strong>{{ movement.balance_after|floatformat:0 }}</strong></td>
+                        <td class="text-muted small">{{ movement.notes|truncatechars:60 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <i class="fas fa-history fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No stock activity recorded yet for this product</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

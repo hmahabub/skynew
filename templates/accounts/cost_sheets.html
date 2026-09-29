@@ -1,0 +1,106 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Cost Sheets - SkyTex ERP{% endblock %}
+
+{% block page_title %}Cost Sheets{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Cost Sheet Management</h5>
+                <p class="text-muted small mb-0">Manage style cost sheets</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:add_cost_sheet' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Cost Sheet
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label small">Project</label>
+                <select name="style" class="form-select">
+                    <option value="">All Projects</option>
+                    {% for style in styles %}
+                    <option value="{{ style.id }}" {% if current_style == style.id|stringformat:"s" %}selected{% endif %}>
+                        {{ style.project_number }} - {{ style.buyer.buyer_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Cost Sheets Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Style</th>
+                        <th>Date</th>
+                        <th>Total Cost</th>
+                        <th>Selling Price</th>
+                        <th>Profit</th>
+                        <th>Margin</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cost_sheet in cost_sheets %}
+                    <tr>
+                        <td>
+                            <strong>{{ cost_sheet.style.project_number }}</strong>
+                            <br>
+                            <small class="text-muted">{{ cost_sheet.style.buyer.buyer_name }}</small>
+                        </td>
+                        <td>{{ cost_sheet.cost_date }}</td>
+                        <td>${{ cost_sheet.total_cost|floatformat:2 }}</td>
+                        <td>${{ cost_sheet.selling_price|floatformat:2 }}</td>
+                        <td>
+                            <span class="{% if cost_sheet.profit > 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ cost_sheet.profit|floatformat:2 }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if cost_sheet.profit_margin > 30 %}success{% elif cost_sheet.profit_margin > 15 %}warning{% else %}danger{% endif %}">
+                                {{ cost_sheet.profit_margin|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'accounts:edit_cost_sheet' cost_sheet.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-calculator fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No cost sheets found</p>
+                            <a href="{% url 'accounts:add_cost_sheet' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Cost Sheet
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

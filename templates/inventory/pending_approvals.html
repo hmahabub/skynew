@@ -1,0 +1,190 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Pending Approvals - SkyTex ERP{% endblock %}
+
+{% block page_title %}Pending Approvals{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Pending Approvals</h5>
+                <p class="text-muted small mb-0">Everything across the warehouse waiting for admin approval</p>
+            </div>
+        </div>
+    </div>
+
+    <h6 class="mb-2">Dispatches Waiting to be Marked Dispatched</h6>
+    <div class="stat-card mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Dispatch #</th>
+                        <th>Date</th>
+                        <th>Project</th>
+                        <th>Buyer</th>
+                        <th>Quantity</th>
+                        <th>Requested By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dispatch in pending_dispatches %}
+                    <tr>
+                        <td><strong>{{ dispatch.dispatch_number }}</strong></td>
+                        <td>{{ dispatch.dispatch_date }}</td>
+                        <td>{{ dispatch.project.project_number }}</td>
+                        <td>{{ dispatch.project.buyer.buyer_name }}</td>
+                        <td>{{ dispatch.total_quantity }}</td>
+                        <td>{{ dispatch.approval_requested_by.username|default:"-" }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'inventory:dispatch_detail' dispatch.pk %}" class="btn btn-outline-primary" title="Review">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <form method="post" action="{% url 'inventory:approve_dispatch' dispatch.pk %}" class="d-inline"
+                                      onsubmit="return confirm('Approve {{ dispatch.dispatch_number }} as Dispatched? Finished goods stock will be deducted.');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="btn btn-outline-success" title="Approve">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                <form method="post" action="{% url 'inventory:reject_dispatch' dispatch.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit" class="btn btn-outline-danger" title="Reject">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">Nothing pending - all caught up.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h6 class="mb-2">Machine Sold / Scrapped Requests</h6>
+    <div class="stat-card mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Machine</th>
+                        <th>Event</th>
+                        <th>Cost</th>
+                        <th>Counterparty</th>
+                        <th>Requested By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in machine_events %}
+                    <tr>
+                        <td><strong>{{ event.machine.machine_code }}</strong> - {{ event.machine.machine_name }}</td>
+                        <td><span class="badge bg-dark">{{ event.get_event_type_display }}</span></td>
+                        <td>{{ event.cost|default:"-" }}</td>
+                        <td>{{ event.counterparty|default:"-" }}</td>
+                        <td>{{ event.created_by.username|default:"-" }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'inventory:machine_detail' event.machine_id %}" class="btn btn-outline-primary" title="Review">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <form method="post" action="{% url 'inventory:approve_machine_event' event.machine_id event.pk %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-success" title="Approve">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">Nothing pending - all caught up.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h6 class="mb-2">Supply Adjustments (Spare Parts / Stationery)</h6>
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Adjustment #</th>
+                        <th>Type</th>
+                        <th>Direction</th>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Requested By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adjustment in supply_adjustments_pending %}
+                    <tr>
+                        <td><strong>{{ adjustment.adjustment_number }}</strong></td>
+                        <td><span class="badge bg-secondary">{{ adjustment.get_adjustment_type_display }}</span></td>
+                        <td>
+                            <span class="badge bg-{% if adjustment.direction == 'increase' %}success{% else %}danger{% endif %}">
+                                {{ adjustment.get_direction_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if adjustment.spare_part %}
+                                {{ adjustment.spare_part.part_name }}
+                            {% elif adjustment.stationery_item %}
+                                {{ adjustment.stationery_item.item_name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="{% if adjustment.direction == 'increase' %}text-success{% else %}text-danger{% endif %}">
+                                {% if adjustment.direction == 'increase' %}+{% else %}-{% endif %}{{ adjustment.quantity }}
+                            </span>
+                        </td>
+                        <td>{{ adjustment.created_by.username|default:"-" }}</td>
+                        <td>
+                            <form method="post" action="{% url 'inventory:approve_supply_adjustment' adjustment.pk %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-success btn-sm" title="Approve">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">Nothing pending - all caught up.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

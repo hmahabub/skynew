@@ -1,0 +1,112 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Leave Requests - SkyTex ERP{% endblock %}
+
+{% block page_title %}Leave Requests{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Leave Management</h5>
+                <p class="text-muted small mb-0">Manage employee leave requests. Approving a request automatically syncs attendance for those dates, so payroll won't deduct them as absences.</p>
+            </div>
+            <div>
+                <a href="{% url 'hr:apply_leave' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Apply for Leave
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="pending" {% if current_status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="approved" {% if current_status == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="rejected" {% if current_status == 'rejected' %}selected{% endif %}>Rejected</option>
+                    <option value="cancelled" {% if current_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Leave List -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Leave Type</th>
+                        <th>Period</th>
+                        <th>Days</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in leaves %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'hr:employee_detail' leave.employee.pk %}">
+                                {{ leave.employee.full_name }}
+                            </a>
+                        </td>
+                        <td>
+                            {{ leave.get_leave_type_display }}
+                            {% if leave.leave_type == 'unpaid' %}
+                            <span class="badge bg-secondary">Unpaid</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ leave.start_date|date:"d M Y" }}</small><br>
+                            <small>to {{ leave.end_date|date:"d M Y" }}</small>
+                        </td>
+                        <td><span class="badge bg-info">{{ leave.total_days }} days</span></td>
+                        <td>
+                            <span class="d-inline-block text-truncate" style="max-width: 150px;" title="{{ leave.reason }}">
+                                {{ leave.reason|truncatechars:30 }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if leave.status == 'approved' %}success{% elif leave.status == 'pending' %}warning{% elif leave.status == 'rejected' %}danger{% else %}secondary{% endif %} badge-status">
+                                {{ leave.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if leave.status == 'pending' %}
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'hr:approve_leave' leave.pk %}" class="btn btn-outline-success" title="Approve/Reject">
+                                    <i class="fas fa-check-circle"></i>
+                                </a>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-calendar-alt fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No leave requests found</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

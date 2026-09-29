@@ -1,0 +1,182 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Employee List - SkyTex ERP{% endblock %}
+
+{% block page_title %}Employee List{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Employee Management</h5>
+                <p class="text-muted small mb-0">Manage all employees across the organization</p>
+            </div>
+            <div>
+                <a href="{% url 'hr:add_employee' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Employee
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Search</label>
+                <input type="text" name="search" class="form-control" placeholder="Search by name, ID, phone..." value="{{ search|default_if_none:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Department</label>
+                <select name="department" class="form-select">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}" {% if current_department == dept.id|stringformat:"s" %}selected{% endif %}>
+                        {{ dept.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Skill Category</label>
+                <select name="skill" class="form-select">
+                    <option value="">All Skills</option>
+                    {% for skill_code, skill_name in skill_categories %}
+                    <option value="{{ skill_code }}" {% if current_skill == skill_code %}selected{% endif %}>
+                        {{ skill_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <a href="{% url 'hr:employee_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-undo"></i> Clear Filters
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Employee Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Photo</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th>Designation</th>
+                        <th>Skill</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                    <tr>
+                        <td><strong>{{ employee.employee_id }}</strong></td>
+                        <td>
+                            {% if employee.profile_picture %}
+                                <img src="{{ employee.profile_picture.url }}" width="40" height="40" class="rounded-circle">
+                            {% else %}
+                                <div class="bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width:40px;height:40px;">
+                                    {{ employee.full_name|first|upper }}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'hr:employee_detail' employee.pk %}" class="text-decoration-none">
+                                {{ employee.full_name }}
+                            </a>
+                        </td>
+                        <td>{{ employee.department.name|default:"-" }}</td>
+                        <td>{{ employee.designation.name|default:"-" }}</td>
+                        <td>
+                            <span class="badge bg-info">
+                                {{ employee.get_skill_category_display }}
+                            </span>
+                        </td>
+                        <td>{{ employee.phone_number }}</td>
+                        <td>
+                            {% if employee.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'hr:employee_detail' employee.pk %}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'hr:edit_employee' employee.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'hr:delete_employee' employee.pk %}" class="btn btn-outline-danger" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No employees found</p>
+                            <a href="{% url 'hr:add_employee' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Employee
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if employees.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if employees.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ employees.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_skill %}&skill={{ current_skill }}{% endif %}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in employees.paginator.page_range %}
+                <li class="page-item {% if employees.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_skill %}&skill={{ current_skill }}{% endif %}">
+                        {{ num }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                {% if employees.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ employees.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if current_department %}&department={{ current_department }}{% endif %}{% if current_skill %}&skill={{ current_skill }}{% endif %}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        <div class="mt-2">
+            <small class="text-muted">Showing {{ employees.start_index }} to {{ employees.end_index }} of {{ employees.paginator.count }} employees</small>
+        </div>
+    </div>
+</div>
+{% endblock %}

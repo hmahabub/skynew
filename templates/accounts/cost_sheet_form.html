@@ -1,0 +1,216 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{% if cost_sheet %}Edit{% else %}Add{% endif %} Cost Sheet - SkyTex ERP{% endblock %}
+
+{% block page_title %}{% if cost_sheet %}Edit{% else %}Add{% endif %} Cost Sheet{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="stat-card">
+                <form method="post" id="costSheetForm">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Project *</label>
+                                {{ form.style }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Cost Date *</label>
+                                {{ form.cost_date }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="border-bottom pb-2 mb-3">Material Costs</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Fabric Cost</label>
+                                {{ form.fabric_cost }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Trim Cost</label>
+                                {{ form.trim_cost }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Packaging Cost</label>
+                                {{ form.packaging_cost }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="border-bottom pb-2 mb-3">Labor Costs</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Cutting Labor</label>
+                                {{ form.cutting_labor }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Stitching Labor</label>
+                                {{ form.stitching_labor }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Finishing Labor</label>
+                                {{ form.finishing_labor }}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">QC Labor</label>
+                                {{ form.qc_labor }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="border-bottom pb-2 mb-3">Overhead Costs</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Factory Overhead</label>
+                                {{ form.factory_overhead }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Administrative Cost</label>
+                                {{ form.administrative_cost }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">Selling Cost</label>
+                                {{ form.selling_cost }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="border-bottom pb-2 mb-3">Summary</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Selling Price</label>
+                                {{ form.selling_price }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Total Cost</label>
+                                <input type="text" id="totalCostDisplay" class="form-control" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Profit</label>
+                                <input type="text" id="profitDisplay" class="form-control" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Profit Margin (%)</label>
+                                <input type="text" id="marginDisplay" class="form-control" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                    
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> {% if cost_sheet %}Update{% else %}Create{% endif %} Cost Sheet
+                        </button>
+                        <a href="{% url 'accounts:cost_sheets' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const costFields = [
+            'fabric_cost', 'trim_cost', 'packaging_cost',
+            'cutting_labor', 'stitching_labor', 'finishing_labor', 'qc_labor',
+            'factory_overhead', 'administrative_cost', 'selling_cost'
+        ];
+        
+        function calculateTotals() {
+            let totalCost = 0;
+            
+            costFields.forEach(field => {
+                const input = document.getElementById('id_' + field);
+                if (input) {
+                    totalCost += parseFloat(input.value) || 0;
+                }
+            });
+            
+            const sellingPrice = parseFloat(document.getElementById('id_selling_price').value) || 0;
+            const profit = sellingPrice - totalCost;
+            const margin = sellingPrice > 0 ? (profit / sellingPrice) * 100 : 0;
+            
+            document.getElementById('totalCostDisplay').value = '$' + totalCost.toFixed(2);
+            document.getElementById('profitDisplay').value = '$' + profit.toFixed(2);
+            document.getElementById('marginDisplay').value = margin.toFixed(1) + '%';
+            
+            // Color coding
+            const profitColor = profit > 0 ? 'text-success' : 'text-danger';
+            document.getElementById('profitDisplay').className = 'form-control ' + profitColor;
+            
+            const marginColor = margin > 30 ? 'text-success' : margin > 15 ? 'text-warning' : 'text-danger';
+            document.getElementById('marginDisplay').className = 'form-control ' + marginColor;
+        }
+        
+        // Add event listeners to all cost fields
+        costFields.forEach(field => {
+            const input = document.getElementById('id_' + field);
+            if (input) {
+                input.addEventListener('input', calculateTotals);
+            }
+        });
+        
+        document.getElementById('id_selling_price').addEventListener('input', calculateTotals);
+        
+        // Initial calculation
+        calculateTotals();
+    });
+</script>
+{% endblock %}

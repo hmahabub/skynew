@@ -1,0 +1,83 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-briefcase"></i> {{ page_title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th style="width: 30%">Designation Name</th>
+                                <td><strong>{{ designation.name }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Department</th>
+                                <td>
+                                    <span class="badge badge-info badge-lg">{{ designation.department.name }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Grade</th>
+                                <td>{{ designation.grade|default:"Not specified" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Minimum Salary</th>
+                                <td><strong>${{ designation.basic_salary_min|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Maximum Salary</th>
+                                <td><strong>${{ designation.basic_salary_max|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Salary Range</th>
+                                <td>
+                                    <div class="progress" style="height: 20px;">
+                                        {% if designation.basic_salary_max > 0 %}
+                                            <div class="progress-bar bg-success" 
+                                                 role="progressbar" 
+                                                 style="width: {{ designation.basic_salary_min|div:designation.basic_salary_max|multiply:100 }}%">
+                                                ${{ designation.basic_salary_min|floatformat:2 }}
+                                            </div>
+                                        {% else %}
+                                            <div class="progress-bar bg-info" style="width: 100%">$0.00</div>
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">Min to Max range visualization</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Created At</th>
+                                <td>{{ designation.created_at|date:"F d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Updated At</th>
+                                <td>{{ designation.updated_at|date:"F d, Y H:i" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="{% url 'hr:edit_designation' designation.pk %}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <a href="{% url 'hr:delete_designation' designation.pk %}" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                        <a href="{% url 'hr:designation_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

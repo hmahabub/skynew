@@ -1,0 +1,56 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Approve Leave - SkyTex ERP{% endblock %}
+
+{% block page_title %}Approve Leave Request{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <h5 class="mb-3">Leave Request Details</h5>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Employee:</strong> {{ leave.employee.full_name }}</p>
+                        <p><strong>Employee ID:</strong> {{ leave.employee.employee_id }}</p>
+                        <p><strong>Department:</strong> {{ leave.employee.department.name|default:"-" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Leave Type:</strong> {{ leave.get_leave_type_display }}</p>
+                        <p><strong>Duration:</strong> {{ leave.start_date|date:"d M Y" }} to {{ leave.end_date|date:"d M Y" }}</p>
+                        <p><strong>Total Days:</strong> {{ leave.total_days }} days</p>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <strong>Reason:</strong>
+                    <p class="text-muted">{{ leave.reason }}</p>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i> 
+                    Please review the request before approving or rejecting.
+                </div>
+                
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="action" value="approve" class="btn btn-success">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger">
+                            <i class="fas fa-times"></i> Reject
+                        </button>
+                        <a href="{% url 'hr:leave_requests' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

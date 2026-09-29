@@ -1,0 +1,132 @@
+{% comment %}
+"+" (Add Stock) and "-" (Remove Stock) popups for trims.
+
+Open them with buttons like:
+    <button type="button" class="btn ..." data-trim-stock="add"
+            data-trim-id="{{ trim.pk }}" data-trim-name="{{ trim.trim_name }}"
+            data-trim-unit="{{ trim.unit }}" data-trim-stock-qty="{{ trim.current_stock }}">
+
+Needs in context: trim_stock_in_form, stock_out_reasons.
+{% endcomment %}
+
+<!-- Add Stock (+) -->
+<div class="modal fade" id="addTrimStockModal" tabindex="-1" aria-labelledby="addTrimStockTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="post" class="modal-content" data-action-template="{% url 'inventory:add_trim_stock' 0 %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTrimStockTitle">
+                    <i class="fas fa-plus-circle text-success"></i> Add Stock
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    <strong class="js-trim-name"></strong><br>
+                    <small class="text-muted">Currently in stock: <span class="js-trim-stock"></span> <span class="js-trim-unit"></span></small>
+                </p>
+                <div class="mb-3">
+                    <label class="form-label" for="{{ trim_stock_in_form.quantity.id_for_label }}">Quantity to add *</label>
+                    <div class="input-group">
+                        {{ trim_stock_in_form.quantity }}
+                        <span class="input-group-text js-trim-unit"></span>
+                    </div>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label" for="{{ trim_stock_in_form.notes.id_for_label }}">Notes</label>
+                    {{ trim_stock_in_form.notes }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-plus"></i> Add Stock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Remove Stock (-) -->
+<div class="modal fade" id="removeTrimStockModal" tabindex="-1" aria-labelledby="removeTrimStockTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="post" class="modal-content" data-action-template="{% url 'inventory:remove_trim_stock' 0 %}">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <div class="modal-header">
+                <h5 class="modal-title" id="removeTrimStockTitle">
+                    <i class="fas fa-minus-circle text-danger"></i> Remove Stock
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    <strong class="js-trim-name"></strong><br>
+                    <small class="text-muted">Currently in stock: <span class="js-trim-stock"></span> <span class="js-trim-unit"></span></small>
+                </p>
+                <div class="mb-3">
+                    <label class="form-label" for="removeTrimQuantity">Quantity to remove *</label>
+                    <div class="input-group">
+                        <input type="number" name="quantity" id="removeTrimQuantity" class="form-control" min="1" step="1" required>
+                        <span class="input-group-text js-trim-unit"></span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="removeTrimReason">Reason *</label>
+                    <select name="reason" id="removeTrimReason" class="form-select">
+                        {% for value, label in stock_out_reasons %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="removeTrimIssuedTo">Issued To</label>
+                    <input type="text" name="issued_to" id="removeTrimIssuedTo" class="form-control" maxlength="200"
+                           placeholder="e.g. Sewing - Line 2, or a person">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label" for="removeTrimNotes">Notes</label>
+                    <textarea name="notes" id="removeTrimNotes" class="form-control" rows="2" placeholder="Anything else worth noting"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-minus"></i> Remove Stock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var modals = {
+        add: document.getElementById('addTrimStockModal'),
+        remove: document.getElementById('removeTrimStockModal'),
+    };
+
+    document.querySelectorAll('[data-trim-stock]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var modal = modals[btn.dataset.trimStock];
+            var form = modal.querySelector('form');
+            form.reset();
+            form.action = form.dataset.actionTemplate.replace('/0/', '/' + btn.dataset.trimId + '/');
+            modal.querySelectorAll('.js-trim-name').forEach(function (el) { el.textContent = btn.dataset.trimName; });
+            modal.querySelectorAll('.js-trim-unit').forEach(function (el) { el.textContent = btn.dataset.trimUnit; });
+            modal.querySelectorAll('.js-trim-stock').forEach(function (el) { el.textContent = btn.dataset.trimStockQty; });
+            if (btn.dataset.trimStock === 'remove') {
+                modal.querySelector('input[name="quantity"]').max = btn.dataset.trimStockQty;
+            }
+            bootstrap.Modal.getOrCreateInstance(modal).show();
+        });
+    });
+
+    Object.values(modals).forEach(function (modal) {
+        modal.addEventListener('shown.bs.modal', function () {
+            modal.querySelector('input[name="quantity"]').focus();
+        });
+    });
+});
+</script>

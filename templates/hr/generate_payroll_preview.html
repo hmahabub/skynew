@@ -1,0 +1,150 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Generate Payroll - Review - SkyTex ERP{% endblock %}
+
+{% block page_title %}Generate Payroll - Review{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-12">
+            <div class="stat-card">
+                <h5 class="mb-3">Review &amp; Confirm Payroll - {{ month }}/{{ year }}</h5>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    {% if source == 'excel' %}
+                    Amounts and notes below were loaded from your uploaded file. Review everything, then confirm.
+                    {% else %}
+                    Salary amounts below are pulled from each employee's default pay (basic + house rent +
+                    medical + transport). Edit the amount if needed.
+                    {% endif %}
+                    If you change the salary amount, please add a short note explaining the increase or deduction.
+                </div>
+
+                <div class="alert alert-secondary">
+                    <i class="fas fa-calendar-check"></i>
+                    <strong>Attendance &amp; leave are synced automatically.</strong>
+                    Days are pulled from Attendance records. Any day covered by an <strong>approved</strong> leave
+                    is treated as paid leave (not absent); any day with no attendance record and no approved leave
+                    is an unexcused absence. The <strong>Absence Deduction</strong>, <strong>Overtime Amount</strong>,
+                    and <strong>Bonus</strong> columns are pre-filled from this and can be edited before confirming.
+                </div>
+
+                {% if existing_count %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Payroll already exists for {{ existing_count }} employee(s) for this month/year and will be overwritten.
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="step" value="confirm">
+                    <input type="hidden" name="month" value="{{ month }}">
+                    <input type="hidden" name="year" value="{{ year }}">
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Dept</th>
+                                    <th>Default Salary<br><small class="text-muted fw-normal">(Basic+HR+Medical+Transport)</small></th>
+                                    <th>Attendance<br><small class="text-muted fw-normal">(Present / Absent / Paid Leave)</small></th>
+                                    <th>OT Hours</th>
+                                    <th style="min-width: 150px;">Salary Amount *</th>
+                                    <th style="min-width: 140px;">Absence Deduction</th>
+                                    <th style="min-width: 140px;">Overtime Amount</th>
+                                    <th style="min-width: 120px;">Bonus</th>
+                                    <th style="min-width: 200px;">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in employee_rows %}
+                                <tr>
+                                    <td>
+                                        {{ row.employee.full_name }}<br>
+                                        <small class="text-muted">{{ row.employee.employee_id }}</small>
+                                        <input type="hidden" name="employee_id" value="{{ row.employee.id }}">
+                                    </td>
+                                    <td>{{ row.employee.department.name|default:"-" }}</td>
+                                    <td><strong>{{ row.default_salary }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-success">{{ row.attendance.days_present }}P</span>
+                                        <span class="badge bg-danger">{{ row.attendance.days_absent }}A</span>
+                                        <span class="badge bg-info">{{ row.attendance.days_paid_leave }}L</span>
+                                        {% if row.attendance.days_unpaid_leave %}
+                                        <span class="badge bg-secondary">{{ row.attendance.days_unpaid_leave }}UL</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ row.attendance.total_overtime_hours|default:"0" }}</td>
+                                    <td>
+                                        <input type="number" step="0.01" class="form-control salary-input"
+                                               name="salary_{{ row.employee.id }}"
+                                               data-default="{{ row.default_salary }}"
+                                               value="{{ row.entered_salary|default:row.default_salary }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" class="form-control"
+                                               name="absence_deduction_{{ row.employee.id }}"
+                                               value="{{ row.absence_deduction }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" class="form-control"
+                                               name="overtime_amount_{{ row.employee.id }}"
+                                               value="{{ row.overtime_amount }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" class="form-control"
+                                               name="bonus_{{ row.employee.id }}"
+                                               value="{{ row.bonus|default:'0' }}">
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control" rows="1"
+                                                  name="remarks_{{ row.employee.id }}"
+                                                  placeholder="e.g. Late penalty, performance bonus...">{{ row.remarks }}</textarea>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted">No active employees found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-check"></i> Confirm &amp; Generate Payroll
+                        </button>
+                        <a href="{% url 'hr:generate_payroll' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Highlight rows where the salary has been changed from the default,
+// as a visual reminder to add a note.
+document.querySelectorAll('.salary-input').forEach(function (input) {
+    function checkChange() {
+        var defaultVal = parseFloat(input.dataset.default);
+        var currentVal = parseFloat(input.value);
+        if (!isNaN(currentVal) && currentVal !== defaultVal) {
+            input.classList.add('border-warning');
+        } else {
+            input.classList.remove('border-warning');
+        }
+    }
+    input.addEventListener('input', checkChange);
+    checkChange();
+});
+</script>
+{% endblock %}

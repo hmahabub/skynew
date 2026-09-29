@@ -1,0 +1,57 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="card-title">
+                        <i class="fas fa-exclamation-triangle"></i> {{ page_title }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-warning"></i>
+                        <strong>Warning!</strong> This action cannot be undone.
+                    </div>
+                    
+                    <p>Are you sure you want to delete the following designation?</p>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th>Designation Name</th>
+                                <td><strong>{{ designation.name }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Department</th>
+                                <td>{{ designation.department.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Grade</th>
+                                <td>{{ designation.grade|default:"-" }}</td>
+                            </tr>
+                            <tr>
+                                <th>Salary Range</th>
+                                <td>${{ designation.basic_salary_min|floatformat:2 }} - ${{ designation.basic_salary_max|floatformat:2 }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Confirm Delete
+                        </button>
+                        <a href="{% url 'hr:designation_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,210 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ machine.machine_code }} - SkyTex ERP{% endblock %}
+
+{% block page_title %}{{ machine.machine_code }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">{{ machine.machine_code }} - {{ machine.machine_name }}</h5>
+                <p class="text-muted small mb-0">{{ machine.get_machine_type_display }} &middot; {{ machine.brand|default:"-" }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'inventory:edit_machine' machine.pk %}" class="btn btn-outline-warning">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a href="{% url 'inventory:machine_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Machines
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Status</div>
+                <div class="h4 mb-0">
+                    {% if machine.status == 'active' %}
+                        <span class="badge bg-success">Active</span>
+                    {% elif machine.status == 'idle' %}
+                        <span class="badge bg-secondary">Idle</span>
+                    {% elif machine.status == 'under_maintenance' %}
+                        <span class="badge bg-warning">Under Maintenance</span>
+                    {% elif machine.status == 'broken_down' %}
+                        <span class="badge bg-danger">Broken Down</span>
+                    {% elif machine.status == 'sold' %}
+                        <span class="badge bg-dark">Sold</span>
+                    {% elif machine.status == 'scrapped' %}
+                        <span class="badge bg-dark">Scrapped</span>
+                    {% else %}
+                        <span class="badge bg-secondary">{{ machine.get_status_display }}</span>
+                    {% endif %}
+                </div>
+                {% if machine.is_disposed %}
+                <div class="text-muted small mt-1"><i class="fas fa-lock"></i> Disposed</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Department</div>
+                <div class="h5 mb-0">{{ machine.department.name|default:"-" }}</div>
+                <div class="text-muted small">{{ machine.line_number|default:"" }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Purchase Cost</div>
+                <div class="h4 mb-0">{{ machine.purchase_cost|default:"-" }}</div>
+                <div class="text-muted small">{{ machine.purchase_date|default:"" }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Warranty Expiry</div>
+                <div class="h5 mb-0">{{ machine.warranty_expiry|default:"-" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stat-card mb-3">
+        <h6 class="border-bottom pb-2">Details</h6>
+        <dl class="row mb-0 small">
+            <dt class="col-sm-2">Model Number</dt>
+            <dd class="col-sm-4">{{ machine.model_number|default:"-" }}</dd>
+            <dt class="col-sm-2">Serial Number</dt>
+            <dd class="col-sm-4">{{ machine.serial_number|default:"-" }}</dd>
+
+            <dt class="col-sm-2">Supplier</dt>
+            <dd class="col-sm-4">{{ machine.supplier.supplier_name|default:"-" }}</dd>
+            <dt class="col-sm-2">Location</dt>
+            <dd class="col-sm-4">{{ machine.location|default:"-" }}</dd>
+
+            {% if machine.description %}
+            <dt class="col-sm-2">Description</dt>
+            <dd class="col-sm-10">{{ machine.description }}</dd>
+            {% endif %}
+        </dl>
+    </div>
+
+    {% if not machine.is_disposed %}
+    <div class="d-flex gap-2 mb-3">
+        <a href="{% url 'inventory:add_machine_event' machine.pk %}" class="btn btn-gradient btn-sm">
+            <i class="fas fa-plus"></i> Log Event
+        </a>
+    </div>
+    {% endif %}
+
+    <div class="stat-card mb-3">
+        <h6 class="border-bottom pb-2">Event History</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Event</th>
+                        <th>Status</th>
+                        <th>Cost</th>
+                        <th>Counterparty</th>
+                        <th>Description</th>
+                        <th>Logged By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                    <tr>
+                        <td>{{ event.event_date }}</td>
+                        <td>
+                            {% if event.event_type == 'breakdown' %}
+                                <span class="badge bg-danger">Breakdown</span>
+                            {% elif event.event_type == 'sold' %}
+                                <span class="badge bg-dark">Sold</span>
+                            {% elif event.event_type == 'scrapped' %}
+                                <span class="badge bg-dark">Scrapped</span>
+                            {% elif event.event_type == 'repair_completed' %}
+                                <span class="badge bg-success">Repair Completed</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ event.get_event_type_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if event.status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                            {% elif event.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ event.cost|default:"-" }}</td>
+                        <td>{{ event.counterparty|default:"-" }}</td>
+                        <td class="text-muted small">{{ event.description|truncatechars:50 }}</td>
+                        <td>{{ event.created_by.username|default:"-" }}</td>
+                        <td>
+                            {% if event.status == 'pending' and request.user.is_superuser %}
+                            <div class="btn-group btn-group-sm">
+                                <form method="post" action="{% url 'inventory:approve_machine_event' machine.pk event.pk %}" onsubmit="return confirm('Approve this? The machine will be marked {{ event.get_event_type_display }} and locked.');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-success" title="Approve">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </form>
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="collapse" data-bs-target="#reject-{{ event.pk }}" title="Reject">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="collapse mt-2" id="reject-{{ event.pk }}">
+                                <form method="post" action="{% url 'inventory:reject_machine_event' machine.pk event.pk %}">
+                                    {% csrf_token %}
+                                    <textarea name="rejection_reason" class="form-control form-control-sm mb-1" rows="1" placeholder="Reason" required></textarea>
+                                    <button type="submit" class="btn btn-danger btn-sm">Confirm Reject</button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-3">No events logged yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="stat-card">
+        <h6 class="border-bottom pb-2">Recent Spare Part Usage</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Spare Part</th>
+                        <th>Department</th>
+                        <th>Quantity</th>
+                        <th>Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in spare_part_consumptions %}
+                    <tr>
+                        <td>{{ c.consumption_date }}</td>
+                        <td><a href="{% url 'inventory:spare_part_stock_ledger' c.spare_part_id %}">{{ c.spare_part.part_name }}</a></td>
+                        <td>{{ c.department.name }}</td>
+                        <td>{{ c.quantity }}</td>
+                        <td>{{ c.total_cost }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-3">No spare parts recorded against this machine yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

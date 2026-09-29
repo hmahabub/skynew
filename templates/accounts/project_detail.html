@@ -1,0 +1,189 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{{ project.project_number }} - SkyTex ERP{% endblock %}
+
+{% block page_title %}Project - {{ project.project_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">{{ project.project_number }}</h5>
+                <p class="text-muted small mb-0">{{ project.buyer.buyer_name }} &middot; {{ project.description|truncatechars:60 }}</p>
+            </div>
+            <div>
+                <span class="badge bg-{% if project.status == 'order' %}success{% elif project.status == 'production' %}warning{% elif project.status == 'delivered' %}info{% elif project.status == 'cancelled' %}danger{% else %}secondary{% endif %} me-2">
+                    {{ project.get_status_display }}
+                </span>
+                <a href="{% url 'accounts:edit_project' project.pk %}" class="btn btn-outline-warning btn-sm">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a href="{% url 'accounts:projects_list' %}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 10: Financial Summary -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3">Order &amp; LC</h6>
+                <table class="table table-sm mb-0">
+                    <tr><td>Order Value</td><td class="text-end"><strong>{{ project.currency }} {{ project.total_value|floatformat:2 }}</strong></td></tr>
+                    <tr><td>LC Amount</td><td class="text-end">{{ project.lc_amount_total|floatformat:2 }}</td></tr>
+                    <tr><td>LC Paid</td><td class="text-end text-success">{{ project.lc_paid_total|floatformat:2 }}</td></tr>
+                    <tr><td>LC Outstanding</td><td class="text-end text-danger">{{ project.lc_outstanding_total|floatformat:2 }}</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3">Loan Against LC</h6>
+                <table class="table table-sm mb-0">
+                    <tr><td>Loan Amount</td><td class="text-end">{{ project.loan_amount_total|floatformat:2 }}</td></tr>
+                    <tr><td>Loan Repaid</td><td class="text-end text-success">{{ project.loan_repaid_total|floatformat:2 }}</td></tr>
+                    <tr><td>Loan Interest</td><td class="text-end">{{ project.loan_interest_total|floatformat:2 }}</td></tr>
+                    <tr><td>Loan Outstanding</td><td class="text-end text-danger">{{ project.loan_outstanding_total|floatformat:2 }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3">Costs</h6>
+                <table class="table table-sm mb-0">
+                    <tr><td>PO Cost</td><td class="text-end">{{ project.po_cost_total|floatformat:2 }}</td></tr>
+                    <tr><td>Other Cost</td><td class="text-end">{{ project.other_cost_total|floatformat:2 }}</td></tr>
+                    <tr><td>Loan Interest</td><td class="text-end">{{ project.loan_interest_total|floatformat:2 }}</td></tr>
+                    <tr class="border-top"><td><strong>Total Cost</strong></td><td class="text-end"><strong>{{ project.actual_total_cost|floatformat:2 }}</strong></td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card">
+                <h6 class="mb-3">Profitability</h6>
+                <table class="table table-sm mb-0">
+                    <tr><td>Order Value</td><td class="text-end">{{ project.total_value|floatformat:2 }}</td></tr>
+                    <tr><td>Total Cost</td><td class="text-end">{{ project.actual_total_cost|floatformat:2 }}</td></tr>
+                    <tr class="border-top"><td><strong>Estimated Profit</strong></td>
+                        <td class="text-end">
+                            <strong class="{% if project.estimated_profit > 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ project.estimated_profit|floatformat:2 }}
+                            </strong>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linked records -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Letters of Credit</h6>
+                    <a href="{% url 'accounts:add_lc' %}" class="btn btn-sm btn-link">Add LC</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>LC #</th><th>Amount</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for lc in letters_of_credit %}
+                            <tr>
+                                <td><a href="{% url 'accounts:lc_detail' lc.pk %}">{{ lc.lc_number }}</a></td>
+                                <td>{{ lc.lc_amount|floatformat:2 }}</td>
+                                <td><span class="badge bg-secondary">{{ lc.get_status_display }}</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted">No LCs</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Purchase Orders</h6>
+                    <a href="{% url 'accounts:add_purchase_order' %}" class="btn btn-sm btn-link">Add PO</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>PO #</th><th>Supplier</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for po in purchase_orders %}
+                            <tr>
+                                <td><a href="{% url 'accounts:purchase_order_detail' po.pk %}">{{ po.po_number }}</a></td>
+                                <td>{{ po.supplier.supplier_name }}</td>
+                                <td><span class="badge bg-secondary">{{ po.get_status_display }}</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted">No purchase orders</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Costs</h6>
+                    <a href="{% url 'accounts:add_cost' %}" class="btn btn-sm btn-link">Add Cost</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Type</th><th>PO</th><th>Amount</th></tr></thead>
+                        <tbody>
+                            {% for cost in costs %}
+                            <tr>
+                                <td>{{ cost.get_cost_type_display }}</td>
+                                <td>{{ cost.purchase_order.po_number|default:"-" }}</td>
+                                <td>{{ cost.amount|floatformat:2 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted">No costs recorded</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Sales Invoices</h6>
+                    <a href="{% url 'accounts:add_invoice' %}" class="btn btn-sm btn-link">Add Invoice</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>Invoice #</th><th>Amount</th><th>Status</th></tr></thead>
+                        <tbody>
+                            {% for invoice in invoices %}
+                            <tr>
+                                <td><a href="{% url 'accounts:invoice_detail' invoice.pk %}">{{ invoice.invoice_number }}</a></td>
+                                <td>{{ invoice.net_amount|floatformat:2 }}</td>
+                                <td><span class="badge bg-secondary">{{ invoice.get_status_display }}</span></td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted">No invoices</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

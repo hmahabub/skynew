@@ -1,0 +1,122 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load hr_extras %}
+
+{% block title %}Payroll Management - SkyTex ERP{% endblock %}
+
+{% block page_title %}Payroll Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Payroll Management</h5>
+                <p class="text-muted small mb-0">Process and manage employee payroll</p>
+            </div>
+            <div>
+                <a href="{% url 'hr:generate_payroll' %}" class="btn btn-gradient">
+                    <i class="fas fa-calculator"></i> Generate Payroll
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filter -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label small">Month</label>
+                <select name="month" class="form-select">
+                    <option value="">All Months</option>
+                    {% for m in months %}
+                    <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>
+                        {{ m }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">Year</label>
+                <select name="year" class="form-select">
+                    <option value="">All Years</option>
+                    {% for year in years %}
+                        <option value="{{ year }}"
+                            {% if request.GET.year == year|stringformat:"s" or year == current_year %}
+                                selected
+                            {% endif %}>
+                            {{ year }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Payroll Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Department</th>
+                        <th>Month/Year</th>
+                        <th>Basic Pay</th>
+                        <th>Attendance<br><small class="text-muted fw-normal">(Present/Absent)</small></th>
+                        <th>Overtime</th>
+                        <th>Bonus</th>
+                        <th>Earnings</th>
+                        <th>Deductions</th>
+                        <th>Net Payable</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payroll in payrolls %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'hr:employee_detail' payroll.employee.pk %}">
+                                {{ payroll.employee.full_name }}
+                            </a>
+                        </td>
+                        <td>{{ payroll.employee.department.name|default:"-" }}</td>
+                        <td>{{ payroll.month }}/{{ payroll.year }}</td>
+                        <td>{{ payroll.basic_pay|floatformat:2 }}</td>
+                        <td>
+                            <span class="badge bg-success">{{ payroll.days_present }}P</span>
+                            <span class="badge bg-danger">{{ payroll.days_absent }}A</span>
+                        </td>
+                        <td>{{ payroll.overtime_amount|floatformat:2 }}</td>
+                        <td>{{ payroll.bonus|floatformat:2 }}</td>
+                        <td>{{ payroll.total_earnings|floatformat:2 }}</td>
+                        <td>{{ payroll.total_deductions|floatformat:2 }}</td>
+                        <td><strong>{{ payroll.net_payable|floatformat:2 }}</strong></td>
+                        <td>
+                            <span class="badge bg-{% if payroll.status == 'paid' %}success{% elif payroll.status == 'processed' %}info{% elif payroll.status == 'approved' %}warning{% else %}secondary{% endif %}">
+                                {{ payroll.get_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center py-4">
+                            <i class="fas fa-file-invoice fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No payroll records found</p>
+                            <a href="{% url 'hr:generate_payroll' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-calculator"></i> Generate Payroll
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

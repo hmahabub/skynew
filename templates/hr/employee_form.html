@@ -1,0 +1,650 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{% if employee %}Edit{% else %}Add{% endif %} Employee - SkyTex ERP{% endblock %}
+
+{% block page_title %}{% if employee %}Edit{% else %}Add{% endif %} Employee{% endblock %}
+
+{% block content %}
+<div class="container-fluid emp-form-page">
+    <form method="post" enctype="multipart/form-data" id="employeeForm" novalidate>
+        {% csrf_token %}
+
+        {% if form.errors %}
+            <div class="alert alert-danger emp-alert">
+                <h6 class="mb-2"><i class="fas fa-circle-exclamation"></i> Please fix the following:</h6>
+                <ul class="mb-0">
+                    {% for field, errors in form.errors.items %}
+                        <li>{{ field }}: {{ errors|join:", " }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <div id="fileSizeAlert" class="alert alert-warning emp-alert" style="display:none;">
+            <i class="fas fa-triangle-exclamation"></i> <span id="fileSizeAlertText"></span>
+        </div>
+
+        <!-- Section: Personal Information -->
+        <div class="emp-section">
+            <div class="emp-section__head">
+                <span class="emp-section__icon"><i class="fas fa-user"></i></span>
+                <div>
+                    <h6 class="emp-section__title">Personal Information</h6>
+                    <p class="emp-section__sub">Basic identity details for this employee</p>
+                </div>
+            </div>
+
+            <div class="emp-section__body">
+                <div class="emp-grid emp-grid--3">
+                    <div class="emp-field">
+                        <label class="emp-label">Employee ID <span class="req">*</span></label>
+                        <input type="text"
+                           class="form-control"
+                           value="{{ form.instance.employee_id }}"
+                           readonly>
+                    </div>
+                    <div class="emp-field emp-field--span2">
+                        <label class="emp-label">Full Name <span class="req">*</span></label>
+                        {{ form.full_name }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--3">
+                    <div class="emp-field">
+                        <label class="emp-label">Father's Name</label>
+                        {{ form.father_name }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Mother's Name</label>
+                        {{ form.mother_name }}
+                    </div>
+                    <div class="emp-field spouse-field" style="display:none;">
+                        <label class="emp-label">Spouse Name</label>
+                        {{ form.spouse_name }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--4">
+                    <div class="emp-field">
+                        <label class="emp-label">Date of Birth <span class="req">*</span></label>
+                        {{ form.date_of_birth }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Gender</label>
+                        {{ form.gender }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Marital Status</label>
+                        {{ form.marital_status }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">National ID <span class="req">*</span></label>
+                        {{ form.national_id }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--4">
+                    <div class="emp-field">
+                        <label class="emp-label">Passport Number</label>
+                        {{ form.passport_number }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--2 emp-grid--files">
+                    <div class="emp-field">
+                        <label class="emp-label">Profile Picture <span class="emp-hint">(max 100 KB)</span></label>
+                        {{ form.profile_picture }}
+                        <div class="emp-file-meta" data-for="profile_picture"></div>
+                        {% if employee and employee.profile_picture %}
+                            <div class="emp-current-file">
+                                <img src="{{ employee.profile_picture.url }}" alt="Current photo">
+                                <span>Current photo on file</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Resume / CV <span class="emp-hint">(max 100 KB)</span></label>
+                        {{ form.resume }}
+                        <div class="emp-file-meta" data-for="resume"></div>
+                        {% if employee and employee.resume %}
+                            <div class="emp-current-file">
+                                <i class="fas fa-file-lines"></i>
+                                <a href="{{ employee.resume.url }}" target="_blank">View current file</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Employment Details -->
+        <div class="emp-section">
+            <div class="emp-section__head">
+                <span class="emp-section__icon"><i class="fas fa-briefcase"></i></span>
+                <div>
+                    <h6 class="emp-section__title">Employment Details</h6>
+                    <p class="emp-section__sub">Role, placement and reporting structure</p>
+                </div>
+            </div>
+
+            <div class="emp-section__body">
+                <div class="emp-grid emp-grid--3">
+                    <div class="emp-field">
+                        <label class="emp-label">Joining Date <span class="req">*</span></label>
+                        {{ form.joining_date }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Confirmation Date</label>
+                        {{ form.confirmation_date }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Reports To</label>
+                        {{ form.reporting_to }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--3">
+                    <div class="emp-field">
+                        <label class="emp-label">Department</label>
+                        {{ form.department }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Designation</label>
+                        {{ form.designation }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Skill Category <span class="req">*</span></label>
+                        {{ form.skill_category }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--3">
+                    <div class="emp-field">
+                        <label class="emp-label">Employment Type</label>
+                        {{ form.employment_type }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Shift</label>
+                        {{ form.shift }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Line Assignment</label>
+                        {{ form.line_assignment }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Compensation -->
+        <div class="emp-section">
+            <div class="emp-section__head">
+                <span class="emp-section__icon"><i class="fas fa-money-bill-wave"></i></span>
+                <div>
+                    <h6 class="emp-section__title">Compensation</h6>
+                    <p class="emp-section__sub">Salary components and wage rate</p>
+                </div>
+            </div>
+
+            <div class="emp-section__body">
+                <div class="emp-grid emp-grid--4">
+                    <div class="emp-field">
+                        <label class="emp-label">Basic Salary</label>
+                        {{ form.basic_salary }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">House Rent</label>
+                        {{ form.house_rent }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Medical Allowance</label>
+                        {{ form.medical_allowance }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Transport Allowance</label>
+                        {{ form.transport_allowance }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--4">
+                    <div class="emp-field">
+                        <label class="emp-label">Daily Wage Rate <span class="emp-hint">(piece rate / daily wage)</span></label>
+                        {{ form.daily_wage_rate }}
+                    </div>
+                </div>
+
+                <div class="emp-total">
+                    <span>Estimated Monthly Total</span>
+                    <strong id="totalSalaryPreview">0.00</strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Contact & Bank -->
+        <div class="emp-section">
+            <div class="emp-section__head">
+                <span class="emp-section__icon"><i class="fas fa-address-book"></i></span>
+                <div>
+                    <h6 class="emp-section__title">Contact &amp; Bank Information</h6>
+                    <p class="emp-section__sub">How to reach this employee, and payout details</p>
+                </div>
+            </div>
+
+            <div class="emp-section__body">
+                <div class="emp-grid emp-grid--3">
+                    <div class="emp-field">
+                        <label class="emp-label">Phone Number <span class="req">*</span></label>
+                        {{ form.phone_number }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Emergency Contact</label>
+                        {{ form.emergency_contact }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Email</label>
+                        {{ form.email }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--2">
+                    <div class="emp-field">
+                        <label class="emp-label">Present Address</label>
+                        {{ form.present_address }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">
+                            Permanent Address
+                            <span class="emp-check">
+                                <input type="checkbox" id="sameAsPresent">
+                                <label for="sameAsPresent">Same as present</label>
+                            </span>
+                        </label>
+                        {{ form.permanent_address }}
+                    </div>
+                </div>
+
+                <div class="emp-grid emp-grid--3">
+                    <div class="emp-field">
+                        <label class="emp-label">Bank Name</label>
+                        {{ form.bank_name }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Bank Account No.</label>
+                        {{ form.bank_account_no }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">PF Account No.</label>
+                        {{ form.pf_account_no }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Status -->
+        <div class="emp-section">
+            <div class="emp-section__head">
+                <span class="emp-section__icon"><i class="fas fa-toggle-on"></i></span>
+                <div>
+                    <h6 class="emp-section__title">Status</h6>
+                    <p class="emp-section__sub">Current employment state</p>
+                </div>
+            </div>
+
+            <div class="emp-section__body">
+                <div class="emp-toggles">
+                    <label class="emp-toggle">
+                        {{ form.is_active }}
+                        <span>Active</span>
+                    </label>
+                    <label class="emp-toggle">
+                        {{ form.is_on_leave }}
+                        <span>On Leave</span>
+                    </label>
+                </div>
+
+                {% if employee %}
+                <div class="emp-grid emp-grid--2 mt-3">
+                    <div class="emp-field">
+                        <label class="emp-label">Termination Date</label>
+                        {{ form.termination_date }}
+                    </div>
+                    <div class="emp-field">
+                        <label class="emp-label">Termination Reason</label>
+                        {{ form.termination_reason }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sticky Actions -->
+        <div class="emp-actions">
+            <a href="{% url 'hr:employee_list' %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+            <button type="submit" class="btn btn-gradient">
+                <i class="fas fa-save"></i>
+                {% if employee %}Update{% else %}Save{% endif %} Employee
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    .emp-form-page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding-bottom: 90px;
+    }
+
+    .emp-alert {
+        border-radius: 10px;
+        font-size: 14px;
+    }
+
+    /* Section card */
+    .emp-section {
+        background: #fff;
+        border: 1px solid #ecedf2;
+        border-radius: 14px;
+        box-shadow: 0 1px 3px rgba(17, 24, 39, 0.04);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+
+    .emp-section__head {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 18px 22px;
+        border-bottom: 1px solid #f1f2f6;
+        background: #fafbfd;
+    }
+
+    .emp-section__icon {
+        flex-shrink: 0;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #fff;
+        font-size: 15px;
+    }
+
+    .emp-section__title {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: #1f2433;
+    }
+
+    .emp-section__sub {
+        margin: 2px 0 0;
+        font-size: 12.5px;
+        color: #8a8f9c;
+    }
+
+    .emp-section__body {
+        padding: 20px 22px 22px;
+    }
+
+    /* Grid */
+    .emp-grid {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+    .emp-grid:last-child { margin-bottom: 0; }
+    .emp-grid--2 { grid-template-columns: repeat(2, 1fr); }
+    .emp-grid--3 { grid-template-columns: repeat(3, 1fr); }
+    .emp-grid--4 { grid-template-columns: repeat(4, 1fr); }
+    .emp-field--span2 { grid-column: span 2; }
+
+    @media (max-width: 900px) {
+        .emp-grid--2, .emp-grid--3, .emp-grid--4 { grid-template-columns: repeat(2, 1fr); }
+        .emp-field--span2 { grid-column: span 2; }
+    }
+    @media (max-width: 600px) {
+        .emp-grid--2, .emp-grid--3, .emp-grid--4 { grid-template-columns: 1fr; }
+        .emp-field--span2 { grid-column: span 1; }
+    }
+
+    .emp-field { display: flex; flex-direction: column; }
+
+    .emp-label {
+        font-weight: 500;
+        color: #4a5568;
+        font-size: 13px;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .emp-hint { font-weight: 400; font-size: 11.5px; color: #9aa1ad; }
+    .req { color: #e0586b; }
+
+    .emp-check {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        font-weight: 400;
+        color: #667eea;
+    }
+    .emp-check input { margin: 0; }
+
+    /* Inputs (inherit Django-rendered widgets) */
+    .emp-section .form-control,
+    .emp-section .form-select,
+    .emp-section input[type="text"],
+    .emp-section input[type="number"],
+    .emp-section input[type="date"],
+    .emp-section input[type="email"],
+    .emp-section input[type="file"],
+    .emp-section select,
+    .emp-section textarea {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        padding: 9px 13px;
+        font-size: 13.5px;
+        color: #2d3748;
+        background: #fff;
+        transition: border-color .15s, box-shadow .15s;
+    }
+    .emp-section input:focus,
+    .emp-section select:focus,
+    .emp-section textarea:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+    }
+    .emp-section textarea { resize: vertical; min-height: 70px; }
+
+    .emp-file-meta {
+        font-size: 11.5px;
+        margin-top: 5px;
+        color: #9aa1ad;
+    }
+    .emp-file-meta.is-error { color: #e0586b; font-weight: 500; }
+
+    .emp-current-file {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 8px;
+        font-size: 12.5px;
+        color: #6b7280;
+    }
+    .emp-current-file img {
+        height: 36px; width: 36px;
+        border-radius: 8px;
+        object-fit: cover;
+        border: 1px solid #e2e8f0;
+    }
+
+    .emp-total {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f6f7fb;
+        border: 1px dashed #d8dcec;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 13.5px;
+        color: #4a5568;
+    }
+    .emp-total strong { font-size: 16px; color: #4338ca; }
+
+    .emp-toggles { display: flex; gap: 24px; }
+    .emp-toggle {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: #4a5568;
+        cursor: pointer;
+    }
+    .emp-toggle input { width: 17px; height: 17px; accent-color: #667eea; cursor: pointer; }
+
+    /* Sticky action bar */
+    .emp-actions {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        border-top: 1px solid #ecedf2;
+        padding: 14px 4px;
+        margin-top: 6px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        z-index: 5;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const MAX_FILE_BYTES = 100 * 1024; // 100 KB
+
+    // Auto-generate Employee ID if empty
+    const employeeIdField = document.getElementById('id_employee_id');
+    if (employeeIdField && !employeeIdField.value) {
+        const today = new Date();
+        const year = today.getFullYear().toString().slice(-2);
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const count = Math.floor(Math.random() * 1000);
+        employeeIdField.value = `EMP${year}${month}${String(count).padStart(4, '0')}`;
+    }
+
+    // Show spouse name only when married
+    const maritalField = document.getElementById('id_marital_status');
+    const spouseWrap = document.querySelector('.spouse-field');
+    function toggleSpouse() {
+        if (!maritalField || !spouseWrap) return;
+        spouseWrap.style.display = maritalField.value === 'married' ? 'flex' : 'none';
+    }
+    if (maritalField) {
+        maritalField.addEventListener('change', toggleSpouse);
+        toggleSpouse();
+    }
+
+    // Live total salary preview
+    const salaryFields = ['id_basic_salary', 'id_house_rent', 'id_medical_allowance', 'id_transport_allowance']
+        .map(id => document.getElementById(id))
+        .filter(Boolean);
+    const totalPreview = document.getElementById('totalSalaryPreview');
+    function updateTotal() {
+        const total = salaryFields.reduce((sum, field) => sum + (parseFloat(field.value) || 0), 0);
+        if (totalPreview) totalPreview.textContent = total.toFixed(2);
+    }
+    salaryFields.forEach(field => field.addEventListener('input', updateTotal));
+    updateTotal();
+
+    // Copy present address to permanent address
+    const sameAsPresent = document.getElementById('sameAsPresent');
+    const presentAddr = document.getElementById('id_present_address');
+    const permanentAddr = document.getElementById('id_permanent_address');
+    if (sameAsPresent && presentAddr && permanentAddr) {
+        sameAsPresent.addEventListener('change', function () {
+            if (this.checked) {
+                permanentAddr.value = presentAddr.value;
+                permanentAddr.setAttribute('readonly', 'readonly');
+            } else {
+                permanentAddr.removeAttribute('readonly');
+            }
+        });
+        presentAddr.addEventListener('input', function () {
+            if (sameAsPresent.checked) permanentAddr.value = presentAddr.value;
+        });
+    }
+
+    // ---- File size limit (100 KB) for profile picture & resume ----
+    const fileAlert = document.getElementById('fileSizeAlert');
+    const fileAlertText = document.getElementById('fileSizeAlertText');
+    const submitBtn = document.querySelector('#employeeForm button[type="submit"]');
+
+    function formatKB(bytes) {
+        return (bytes / 1024).toFixed(1) + ' KB';
+    }
+
+    function watchFileField(inputId, label) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const meta = document.querySelector(`.emp-file-meta[data-for="${inputId.replace('id_', '')}"]`);
+
+        input.addEventListener('change', function () {
+            const file = input.files && input.files[0];
+            if (!file) {
+                if (meta) { meta.textContent = ''; meta.classList.remove('is-error'); }
+                return;
+            }
+            if (file.size > MAX_FILE_BYTES) {
+                input.value = '';
+                if (meta) {
+                    meta.textContent = `"${file.name}" is ${formatKB(file.size)} — exceeds the 100 KB limit.`;
+                    meta.classList.add('is-error');
+                }
+                if (fileAlert && fileAlertText) {
+                    fileAlertText.textContent = `${label} must be 100 KB or smaller. Please choose a smaller file.`;
+                    fileAlert.style.display = 'block';
+                    fileAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                if (meta) {
+                    meta.textContent = `${file.name} — ${formatKB(file.size)}`;
+                    meta.classList.remove('is-error');
+                }
+                if (fileAlert) fileAlert.style.display = 'none';
+            }
+        });
+    }
+
+    watchFileField('id_profile_picture', 'Profile picture');
+    watchFileField('id_resume', 'Resume/CV');
+
+    // Final safety net on submit
+    document.getElementById('employeeForm').addEventListener('submit', function (e) {
+        const fields = [document.getElementById('id_profile_picture'), document.getElementById('id_resume')];
+        for (const field of fields) {
+            if (field && field.files && field.files[0] && field.files[0].size > MAX_FILE_BYTES) {
+                e.preventDefault();
+                if (fileAlert && fileAlertText) {
+                    fileAlertText.textContent = 'One of your files exceeds the 100 KB limit. Please remove or replace it before saving.';
+                    fileAlert.style.display = 'block';
+                    fileAlert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

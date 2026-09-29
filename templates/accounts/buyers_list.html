@@ -1,0 +1,106 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Buyers - SkyTex ERP{% endblock %}
+
+{% block page_title %}Buyer Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Buyer Management</h5>
+                <p class="text-muted small mb-0">Manage all buyers and their information</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:add_buyer' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Buyer
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Search -->
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label small">Search</label>
+                <input type="text" name="search" class="form-control" placeholder="Search by name, code, country..." value="{{ search|default_if_none:'' }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="{% url 'accounts:buyers_list' %}" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-undo"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Buyers Table -->
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Country</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Credit Limit</th>
+                        <th>Outstanding</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for buyer in buyers %}
+                    <tr>
+                        <td><strong>{{ buyer.buyer_code }}</strong></td>
+                        <td>{{ buyer.buyer_name }}</td>
+                        <td><span class="badge bg-info">{{ buyer.country }}</span></td>
+                        <td>{{ buyer.email }}</td>
+                        <td>{{ buyer.phone }}</td>
+                        <td>${{ buyer.credit_limit|floatformat:2 }}</td>
+                        <td>
+                            <span class="{% if buyer.outstanding_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                ${{ buyer.outstanding_balance|floatformat:2 }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if buyer.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'accounts:edit_buyer' buyer.pk %}" class="btn btn-outline-warning" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No buyers found</p>
+                            <a href="{% url 'accounts:add_buyer' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Buyer
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

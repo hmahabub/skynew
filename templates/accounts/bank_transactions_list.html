@@ -1,0 +1,88 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Bank Transactions - SkyTex ERP{% endblock %}
+
+{% block page_title %}Bank Transactions{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Bank Transactions</h5>
+                <p class="text-muted small mb-0">Deposits, withdrawals, transfers, payments and receipts</p>
+            </div>
+            <div>
+                <a href="{% url 'accounts:add_bank_transaction' %}" class="btn btn-gradient">
+                    <i class="fas fa-plus"></i> Add Transaction
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="filter-section">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label small">Bank Account</label>
+                <select name="bank" class="form-select">
+                    <option value="">All Accounts</option>
+                    {% for bank in banks %}
+                    <option value="{{ bank.id }}" {% if current_bank == bank.id|stringformat:"s" %}selected{% endif %}>
+                        {{ bank.account_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Bank Account</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in transactions %}
+                    <tr>
+                        <td>{{ txn.bank_account.account_name }}</td>
+                        <td>
+                            <span class="badge bg-{% if txn.transaction_type in 'deposit,receipt' %}success{% else %}danger{% endif %}">
+                                {{ txn.get_transaction_type_display }}
+                            </span>
+                        </td>
+                        <td>${{ txn.amount|floatformat:2 }}</td>
+                        <td>{{ txn.transaction_date }}</td>
+                        <td>{{ txn.reference|default:"-" }}</td>
+                        <td class="text-muted small">{{ txn.description|truncatechars:40 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <i class="fas fa-exchange-alt fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">No transactions found</p>
+                            <a href="{% url 'accounts:add_bank_transaction' %}" class="btn btn-gradient btn-sm">
+                                <i class="fas fa-plus"></i> Add First Transaction
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

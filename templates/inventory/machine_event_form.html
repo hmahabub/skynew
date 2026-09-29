@@ -1,0 +1,86 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Log Event - {{ machine.machine_code }} - SkyTex ERP{% endblock %}
+
+{% block page_title %}Log Event{% endblock %}
+
+{% block content %}
+<style>
+    .compact-form .form-label { margin-bottom: 0.15rem; font-size: 0.8rem; font-weight: 600; }
+    .compact-form .form-control, .compact-form .form-select { padding: 0.3rem 0.5rem; font-size: 0.85rem; }
+    .compact-form textarea.form-control { height: auto; min-height: 60px; }
+    .compact-form .mb-3 { margin-bottom: 0.75rem !important; }
+    .compact-form .btn { padding: 0.3rem 0.75rem; font-size: 0.85rem; }
+    .compact-card { padding: 1rem !important; }
+    .compact-form .alert { padding: 0.5rem 0.75rem; font-size: 0.8rem; margin-bottom: 0.5rem; }
+</style>
+
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="stat-card compact-card">
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="fw-bold">{{ machine.machine_code }} - {{ machine.machine_name }}</div>
+                    <div class="text-muted small">Current status: {{ machine.get_status_display }}</div>
+                </div>
+
+                <div class="alert alert-info py-2 small">
+                    Marking this machine <strong>Sold</strong> or <strong>Scrapped</strong> will be submitted for
+                    admin approval and won't take effect until approved. Every other event type applies immediately.
+                </div>
+
+                <form method="post" class="compact-form">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <strong>Please fix the following errors:</strong>
+                            <ul class="mb-0 ps-3">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label">Event Type *</label>
+                        {{ form.event_type }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Event Date *</label>
+                        {{ form.event_date }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Cost</label>
+                        {{ form.cost }}
+                        <div class="form-text">Repair cost or sale price, if applicable.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Counterparty</label>
+                        {{ form.counterparty }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        {{ form.description }}
+                    </div>
+
+                    <div class="mt-2 border-top pt-2">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> Log Event
+                        </button>
+                        <a href="{% url 'inventory:machine_detail' machine.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

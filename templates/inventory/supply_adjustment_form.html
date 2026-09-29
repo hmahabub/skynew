@@ -1,0 +1,126 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Supply Adjustment - SkyTex ERP{% endblock %}
+
+{% block page_title %}Create Supply Adjustment{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="stat-card">
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="fas fa-info-circle"></i>
+                        The adjustment number is generated automatically (format: <code>SUA-YYMMDD-00001</code>).
+                        This will be <strong>submitted for approval</strong> - stock won't change until an
+                        admin approves it. Stock can never be reduced below 0.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Direction *</label>
+                                {{ form.direction }}
+                                <div class="form-text">Are you adding stock or removing it?</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Adjustment Type *</label>
+                                {{ form.adjustment_type }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Adjustment Date *</label>
+                                {{ form.adjustment_date }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Quantity *</label>
+                                {{ form.quantity }}
+                                <div class="form-text">Always a positive amount - direction above decides add or remove.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-secondary py-2 small">
+                        Adjust exactly <strong>one</strong> of the items below.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Spare Part</label>
+                                {{ form.spare_part }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Stationery Item</label>
+                                {{ form.stationery_item }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reason *</label>
+                        {{ form.reason }}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-paper-plane"></i> Submit for Approval
+                        </button>
+                        <a href="{% url 'inventory:supply_adjustments' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Selecting one of spare_part/stationery_item clears the other, so
+    // the "exactly one target" rule is obvious before you even submit.
+    document.addEventListener('DOMContentLoaded', function () {
+        const sparePart = document.getElementById('id_spare_part');
+        const stationeryItem = document.getElementById('id_stationery_item');
+        const targets = [sparePart, stationeryItem];
+
+        targets.forEach(field => {
+            field.addEventListener('change', function () {
+                if (field.value) {
+                    targets.filter(f => f !== field).forEach(other => other.value = '');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

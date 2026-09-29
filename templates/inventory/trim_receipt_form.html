@@ -1,0 +1,191 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Create Trim Receipt - SkyTex ERP{% endblock %}
+
+{% block page_title %}Create Trim Receipt{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="stat-card">
+                <form method="post" id="receiptForm">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <h6>Please fix the following errors:</h6>
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="fas fa-info-circle"></i>
+                        A Trim Receipt only ever <strong>adds</strong> to trim stock. The receipt
+                        number is generated automatically (format: <code>TR-YYMMDD-00001</code>).
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Supplier *</label>
+                                {{ form.supplier }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Invoice Number *</label>
+                                {{ form.invoice_number }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Invoice Date</label>
+                                {{ form.invoice_date }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="border-bottom pb-2 mb-3">Trims Received</h6>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle" id="itemsTable">
+                            <thead>
+                                <tr>
+                                    <th>Trim</th>
+                                    <th style="width: 160px;">Quantity</th>
+                                    <th style="width: 160px;">Unit Price</th>
+                                    <th style="width: 140px;">Line Total</th>
+                                    <th style="width: 50px;">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="addRow()" title="Add another trim">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="itemsBody">
+                                <tr>
+                                    <td>
+                                        <select name="trim_ids[]" class="form-select item-trim">
+                                            <option value="">Select Trim</option>
+                                            {% for trim in trims %}
+                                            <option value="{{ trim.id }}">{{ trim.trim_code }} - {{ trim.trim_name }} (currently {{ trim.current_stock }} {{ trim.unit }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantities[]" class="form-control item-qty" step="1" min="1" placeholder="0">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="unit_prices[]" class="form-control item-price" step="0.01" min="0" placeholder="0.00">
+                                    </td>
+                                    <td class="item-total text-end fw-semibold">0.00</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)" title="Remove">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-light">
+                                    <td class="text-end fw-semibold">Totals:</td>
+                                    <td class="fw-semibold text-success" id="totalQty">0</td>
+                                    <td></td>
+                                    <td class="fw-semibold" id="grandTotal">0.00</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                    
+                    <div class="mt-4 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> Create Receipt &amp; Add to Stock
+                        </button>
+                        <a href="{% url 'inventory:trim_receipts' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function wireRowTotals(row) {
+        row.querySelectorAll('.item-qty, .item-price').forEach(el => {
+            el.addEventListener('input', updateTotals);
+        });
+    }
+
+    function updateTotals() {
+        let totalQty = 0, grandTotal = 0;
+
+        document.querySelectorAll('#itemsBody tr').forEach(row => {
+            const qty = parseInt(row.querySelector('.item-qty').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const lineTotal = qty * price;
+
+            row.querySelector('.item-total').textContent = lineTotal.toFixed(2);
+            totalQty += qty;
+            grandTotal += lineTotal;
+        });
+
+        document.getElementById('totalQty').textContent = totalQty;
+        document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
+    }
+
+    function addRow() {
+        const tbody = document.getElementById('itemsBody');
+        const firstRow = tbody.querySelector('tr');
+        const newRow = firstRow.cloneNode(true);
+
+        newRow.querySelectorAll('input').forEach(input => input.value = '');
+        newRow.querySelector('select').selectedIndex = 0;
+        newRow.querySelector('.item-total').textContent = '0.00';
+
+        tbody.appendChild(newRow);
+        wireRowTotals(newRow);
+        updateTotals();
+    }
+
+    function removeRow(button) {
+        const tbody = document.getElementById('itemsBody');
+        if (tbody.querySelectorAll('tr').length > 1) {
+            button.closest('tr').remove();
+            updateTotals();
+        } else {
+            alert('At least one trim row is required.');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('#itemsBody tr').forEach(wireRowTotals);
+        updateTotals();
+
+        document.getElementById('receiptForm').addEventListener('submit', function (e) {
+            const hasAnyRow = Array.from(document.querySelectorAll('#itemsBody .item-qty'))
+                .some(input => input.value && parseInt(input.value) > 0);
+            if (!hasAnyRow) {
+                e.preventDefault();
+                alert('Add at least one trim with a quantity greater than 0.');
+            }
+        });
+    });
+</script>
+{% endblock %}
