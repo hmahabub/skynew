@@ -1,0 +1,54 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}New Expense Voucher - SkyTex ERP{% endblock %}
+
+{% block page_title %}New Expense Voucher{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="stat-card">
+                <div class="alert alert-warning py-2 small">
+                    <i class="fas fa-user-shield"></i>
+                    A voucher asks for money to be spent. Once an admin approves it, it's recorded as a paid cost
+                    and taken out of the Cash Book.
+                    Pick an <strong>Order</strong> for an order cost, or leave it blank for an overall cost.
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+
+                    <div class="row">
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.project %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.cost_type %}</div>
+                    </div>
+                    {% include 'accounts/includes/field.html' with field=form.supplier %}
+                    <div class="row">
+                        <div class="col-md-8">{% include 'accounts/includes/field.html' with field=form.description %}</div>
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.amount %}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.voucher_date %}</div>
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.paid_by %}</div>
+                        <div class="col-md-4 js-bank-only">{% include 'accounts/includes/field.html' with field=form.bank_name %}</div>
+                    </div>
+                    {% include 'accounts/includes/field.html' with field=form.remarks %}
+
+                    <div class="mt-2 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-paper-plane"></i> Send for Approval
+                        </button>
+                        <a href="{% url 'accounts:voucher_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% include 'accounts/includes/bank_toggle.html' with select_id=form.paid_by.id_for_label %}
+{% endblock %}

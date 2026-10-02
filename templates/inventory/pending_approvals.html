@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Pending Approvals - SkyTex ERP{% endblock %}
 
@@ -16,6 +17,96 @@
         </div>
     </div>
 
+    <h6 class="mb-2">Expense Vouchers</h6>
+    <div class="stat-card mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Voucher #</th>
+                        <th>Date</th>
+                        <th>For</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Requested By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for voucher in pending_vouchers %}
+                    <tr>
+                        <td><strong>{{ voucher.voucher_number }}</strong></td>
+                        <td>{{ voucher.voucher_date }}</td>
+                        <td>{% if voucher.project %}{{ voucher.project.project_number }}{% else %}Overall{% endif %} &middot; {{ voucher.get_cost_type_display }}</td>
+                        <td>{{ voucher.description }}</td>
+                        <td>{{ voucher.amount|bdt }}</td>
+                        <td>{{ voucher.requested_by.username|default:"-" }}</td>
+                        <td>{% include 'accounts/includes/voucher_actions.html' %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">Nothing pending - all caught up.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h6 class="mb-2">Stock Transfers</h6>
+    <div class="stat-card mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Transfer #</th>
+                        <th>Requested</th>
+                        <th>Item</th>
+                        <th>Lot</th>
+                        <th>Quantity</th>
+                        <th>Reason</th>
+                        <th>Issued To</th>
+                        <th>Requested By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transfer in pending_transfers %}
+                    <tr>
+                        <td><strong>{{ transfer.transfer_number }}</strong></td>
+                        <td>{{ transfer.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            {% if transfer.fabric %}
+                                <a href="{% url 'inventory:fabric_stock_ledger' transfer.fabric_id %}">{{ transfer.item_name }}</a>
+                                <span class="badge bg-light text-dark">Fabric</span>
+                            {% else %}
+                                <a href="{% url 'inventory:trim_stock_ledger' transfer.trim_id %}">{{ transfer.item_name }}</a>
+                                <span class="badge bg-light text-dark">Trim</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ transfer.fabric_roll.lot_number|default:"-" }}</td>
+                        <td>{{ transfer.quantity|floatformat:"-2" }} {{ transfer.unit }}</td>
+                        <td>{{ transfer.get_reason_display }}</td>
+                        <td>{{ transfer.issued_to|default:"-" }}</td>
+                        <td>{{ transfer.requested_by.username|default:"-" }}</td>
+                        <td>{% include 'inventory/includes/transfer_approve_buttons.html' %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-muted mb-3 d-block"></i>
+                            <p class="text-muted">Nothing pending - all caught up.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <h6 class="mb-2">Dispatches Waiting to be Marked Dispatched</h6>
     <div class="stat-card mb-4">
         <div class="table-responsive">
@@ -24,7 +115,7 @@
                     <tr>
                         <th>Dispatch #</th>
                         <th>Date</th>
-                        <th>Project</th>
+                        <th>Order</th>
                         <th>Buyer</th>
                         <th>Quantity</th>
                         <th>Requested By</th>

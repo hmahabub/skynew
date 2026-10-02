@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}{{ lc.lc_number }} - SkyTex ERP{% endblock %}
 
@@ -8,119 +9,155 @@
 {% block content %}
 <div class="container-fluid">
     <div class="row">
-        <div class="col-md-8">
+        <div class="col-lg-8">
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5>LC #{{ lc.lc_number }}</h5>
-                    <span class="badge bg-{% if lc.status == 'active' %}success{% elif lc.status == 'utilized' %}info{% elif lc.status == 'expired' %}warning{% else %}danger{% endif %} badge-status">
+                    <h5 class="mb-0">LC #{{ lc.lc_number }}</h5>
+                    <span class="badge bg-{% if lc.status == 'active' %}success{% elif lc.status == 'completed' %}info{% elif lc.status == 'expired' %}warning{% else %}danger{% endif %}">
                         {{ lc.get_status_display }}
                     </span>
                 </div>
 
                 <div class="row">
                     <div class="col-md-6">
-                        <p class="mb-1"><strong>Project:</strong> {{ lc.project.project_number }}</p>
+                        <p class="mb-1"><strong>Order:</strong> <a href="{% url 'accounts:project_detail' lc.project.pk %}">{{ lc.project }}</a></p>
                         <p class="mb-1"><strong>Bank:</strong> {{ lc.bank_name }}</p>
                         <p class="mb-1"><strong>LC Date:</strong> {{ lc.lc_date }}</p>
                         <p class="mb-1"><strong>Expiry Date:</strong> {{ lc.expiry_date }}</p>
                     </div>
                     <div class="col-md-6">
-                        <p class="mb-1"><strong>LC Amount:</strong> {{ lc.currency }} {{ lc.lc_amount|floatformat:2 }}</p>
-                        <p class="mb-1"><strong>Total Paid:</strong> {{ lc.total_paid|floatformat:2 }}</p>
-                        <p class="mb-1"><strong>Outstanding:</strong>
-                            <span class="{% if lc.lc_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
-                                {{ lc.lc_outstanding|floatformat:2 }}
-                            </span>
+                        <p class="mb-1"><strong>LC Amount:</strong> {{ lc.lc_amount|usd }}</p>
+                        <p class="mb-1"><strong>Received:</strong> {{ lc.total_paid|usd }}</p>
+                        <p class="mb-1"><strong>Still to Receive:</strong>
+                            <span class="{% if lc.lc_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">{{ lc.lc_outstanding|usd }}</span>
                         </p>
+                        {% if lc.status == 'completed' %}
+                        <p class="mb-1"><strong>Completed:</strong> {{ lc.completed_date }} &middot; realised {{ lc.realized_amount|usd }}
+                            {% if lc.exchange_rate %}@ {{ lc.exchange_rate|floatformat:2 }}{% endif %} = {{ lc.realized_bdt|bdt }},
+                            loan adjusted {{ lc.loan_adjusted|bdt }}</p>
+                        {% endif %}
                     </div>
                 </div>
-
-                {% if lc.remarks %}
-                <hr>
-                <p class="text-muted small mb-0">{{ lc.remarks }}</p>
-                {% endif %}
+                {% if lc.remarks %}<hr><p class="text-muted small mb-0">{{ lc.remarks }}</p>{% endif %}
 
                 <hr>
-
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">Payments</h6>
-                    <a href="{% url 'accounts:add_lc_payment' lc.pk %}" class="btn btn-sm btn-gradient">
-                        <i class="fas fa-plus"></i> Add Payment
+                    <h6 class="mb-0">Money Received</h6>
+                    {% if lc.is_open %}
+                    <a href="{% url 'accounts:add_lc_payment' lc.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus"></i> Record Part Payment
                     </a>
+                    {% endif %}
                 </div>
                 <div class="table-responsive mb-3">
                     <table class="table table-sm">
-                        <thead><tr><th>Date</th><th>Amount</th><th>Bank</th><th>Reference</th></tr></thead>
+                        <thead><tr><th>Date</th><th>USD</th><th>Rate</th><th>BDT Credited</th><th>Bank</th><th>Reference</th><th>Note</th></tr></thead>
                         <tbody>
                             {% for payment in payments %}
                             <tr>
                                 <td>{{ payment.payment_date }}</td>
-                                <td>{{ payment.amount|floatformat:2 }}</td>
+                                <td>{{ payment.amount|usd }}</td>
+                                <td>{{ payment.exchange_rate|floatformat:2|default:"-" }}</td>
+                                <td>{{ payment.amount_bdt|bdt }}</td>
                                 <td>{{ payment.bank_name|default:"-" }}</td>
                                 <td>{{ payment.reference|default:"-" }}</td>
+                                <td class="text-muted small">{{ payment.remarks|default:"" }}</td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="4" class="text-center text-muted">No payments recorded</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted">Nothing received yet</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h6 class="mb-0">Loans Against LC</h6>
+                    <h6 class="mb-0">Loans Against this LC</h6>
+                    {% if lc.is_open %}
                     <a href="{% url 'accounts:add_lc_loan' lc.pk %}" class="btn btn-sm btn-gradient">
-                        <i class="fas fa-plus"></i> Add Loan
+                        <i class="fas fa-hand-holding-usd"></i> Take Loan
                     </a>
+                    {% endif %}
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead><tr><th>Date</th><th>Amount</th><th>Interest</th><th>Repaid</th><th>Outstanding</th></tr></thead>
+                {% for loan in loans %}
+                <div class="border rounded p-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <strong>{{ loan.loan_amount|bdt }}</strong> taken {{ loan.loan_date }}
+                            {% if loan.bank_name %}<span class="text-muted small">from {{ loan.bank_name }}</span>{% endif %}
+                            <div class="small text-muted">
+                                + interest {{ loan.interest|bdt }} + charges {{ loan.other_charges|bdt }}
+                                = due {{ loan.total_due|bdt }} &middot; repaid {{ loan.repaid_amount|bdt }}
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if loan.is_settled %}
+                                <span class="badge bg-success">Settled</span>
+                            {% else %}
+                                <span class="text-danger fw-semibold">Owed: {{ loan.outstanding|bdt }}</span>
+                                <a href="{% url 'accounts:repay_lc_loan' loan.pk %}" class="btn btn-sm btn-outline-success">
+                                    <i class="fas fa-money-bill-wave"></i> Make Payment
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if loan.repayments.all %}
+                    <table class="table table-sm mb-0 mt-2 small">
+                        <thead><tr><th>Date</th><th>Kind</th><th>Amount</th><th>Paid By</th><th>Reference</th></tr></thead>
                         <tbody>
-                            {% for loan in loans %}
+                            {% for r in loan.repayments.all %}
                             <tr>
-                                <td>{{ loan.loan_date }}</td>
-                                <td>{{ loan.loan_amount|floatformat:2 }}</td>
-                                <td>{{ loan.interest|floatformat:2 }}</td>
-                                <td>{{ loan.repaid_amount|floatformat:2 }}</td>
-                                <td class="{% if loan.outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
-                                    {{ loan.outstanding|floatformat:2 }}
-                                </td>
+                                <td>{{ r.repayment_date }}</td>
+                                <td>{% if r.kind == 'lc_adjustment' %}<span class="badge bg-info">Adjusted from LC</span>{% else %}Repayment{% endif %}</td>
+                                <td>{{ r.amount|bdt }}</td>
+                                <td>{% if r.kind == 'lc_adjustment' %}-{% else %}{{ r.get_mode_display }}{% endif %}</td>
+                                <td>{{ r.reference|default:"-" }}</td>
                             </tr>
-                            {% empty %}
-                            <tr><td colspan="5" class="text-center text-muted">No loans recorded</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                    {% endif %}
                 </div>
+                {% empty %}
+                <p class="text-muted small">No loans taken against this LC.</p>
+                {% endfor %}
 
                 <div class="mt-3">
-                    <a href="{% url 'accounts:lc_list' %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left"></i> Back
-                    </a>
-                    <a href="{% url 'accounts:project_detail' lc.project.pk %}" class="btn btn-outline-primary">
-                        <i class="fas fa-folder-open"></i> View Project
-                    </a>
+                    <a href="{% url 'accounts:lc_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-lg-4">
             <div class="stat-card">
                 <h6>LC Summary</h6>
-                <div class="mb-3">
-                    <small class="text-muted">LC Amount</small>
-                    <h5>{{ lc.currency }} {{ lc.lc_amount|floatformat:2 }}</h5>
-                </div>
-                <div class="mb-3">
-                    <small class="text-muted">Total Paid</small>
-                    <h5 class="text-success">{{ lc.total_paid|floatformat:2 }}</h5>
-                </div>
-                <div class="mb-3">
-                    <small class="text-muted">Outstanding</small>
-                    <h5 class="text-danger">{{ lc.lc_outstanding|floatformat:2 }}</h5>
-                </div>
+                <div class="mb-2"><small class="text-muted">LC Amount</small><h5>{{ lc.lc_amount|usd }}</h5></div>
+                <div class="mb-2"><small class="text-muted">Received</small><h5 class="text-success">{{ lc.total_paid|usd }}</h5></div>
+                <div class="mb-2"><small class="text-muted">Still to Receive</small><h5 class="text-danger">{{ lc.lc_outstanding|usd }}</h5></div>
+                <div class="mb-0"><small class="text-muted">Owed on Loans</small><h5 class="{% if loans_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">{{ loans_outstanding|bdt }}</h5></div>
             </div>
+
+            {% if lc.is_open %}
+            <div class="stat-card">
+                <h6><i class="fas fa-flag-checkered"></i> Complete LC</h6>
+                <p class="small text-muted">
+                    Record the USD realised and the bank's rate. Whatever is still owed on its loans
+                    ({{ loans_outstanding|bdt }}) is paid off from the BDT credited first; the rest goes into the Cash Book.
+                </p>
+                <form method="post" action="{% url 'accounts:complete_lc' lc.pk %}"
+                      onsubmit="return confirm('Complete LC {{ lc.lc_number }}? Its loans will be adjusted and it can\'t be reopened.');">
+                    {% csrf_token %}
+                    {% include 'accounts/includes/field.html' with field=complete_form.completion_date %}
+                    {% include 'accounts/includes/field.html' with field=complete_form.realized_amount %}
+                    {% include 'accounts/includes/field.html' with field=complete_form.exchange_rate %}
+                    {% include 'accounts/includes/field.html' with field=complete_form.realized_bdt %}
+                    {% include 'accounts/includes/field.html' with field=complete_form.bank_name %}
+                    {% include 'accounts/includes/field.html' with field=complete_form.reference %}
+                    <button type="submit" class="btn btn-gradient w-100"><i class="fas fa-check"></i> Complete LC</button>
+                </form>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
+{% include 'accounts/includes/usd_to_bdt.html' with usd_id=complete_form.realized_amount.id_for_label rate_id=complete_form.exchange_rate.id_for_label bdt_id=complete_form.realized_bdt.id_for_label %}
 {% endblock %}

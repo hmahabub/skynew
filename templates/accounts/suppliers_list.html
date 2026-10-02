@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Suppliers - SkyTex ERP{% endblock %}
 
@@ -72,7 +73,7 @@
                         <td>{{ supplier.phone }}</td>
                         <td>
                             <span class="{% if supplier.outstanding_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                                ${{ supplier.outstanding_balance|floatformat:2 }}
+                                {{ supplier.outstanding_balance|bdt }}
                             </span>
                         </td>
                         <td>{{ supplier.credit_days }} days</td>

@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Add LC Payment - SkyTex ERP{% endblock %}
 
@@ -12,58 +13,28 @@
             <div class="stat-card">
                 <div class="alert alert-info py-2 small mb-3">
                     <i class="fas fa-info-circle"></i>
-                    Recording a payment against LC <strong>{{ lc.lc_number }}</strong>
-                    (Outstanding: {{ lc.lc_outstanding|floatformat:2 }})
+                    Recording a part payment received under LC <strong>{{ lc.lc_number }}</strong>
+                    (still to receive: {{ lc.lc_outstanding|usd }}). Enter the USD received and the bank's rate -
+                    the BDT credited is added to the Cash Book (bank).
                 </div>
 
                 <form method="post">
                     {% csrf_token %}
-
-                    {% if form.errors %}
-                        <div class="alert alert-danger">
-                            <h6>Please fix the following errors:</h6>
-                            <ul class="mb-0">
-                                {% for field, errors in form.errors.items %}
-                                    <li>{{ field }}: {{ errors|join:", " }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
+                    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
 
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Payment Date *</label>
-                                {{ form.payment_date }}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Amount *</label>
-                                {{ form.amount }}
-                            </div>
-                        </div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.payment_date %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.amount %}</div>
                     </div>
-
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Bank Name</label>
-                                {{ form.bank_name }}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Reference</label>
-                                {{ form.reference }}
-                            </div>
-                        </div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.exchange_rate %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.amount_bdt %}</div>
                     </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Remarks</label>
-                        {{ form.remarks }}
+                    <div class="row">
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.bank_name %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.reference %}</div>
                     </div>
+                    {% include 'accounts/includes/field.html' with field=form.remarks %}
 
                     <div class="mt-4 border-top pt-3">
                         <button type="submit" class="btn btn-gradient">
@@ -78,4 +49,5 @@
         </div>
     </div>
 </div>
+{% include 'accounts/includes/usd_to_bdt.html' with usd_id=form.amount.id_for_label rate_id=form.exchange_rate.id_for_label bdt_id=form.amount_bdt.id_for_label %}
 {% endblock %}

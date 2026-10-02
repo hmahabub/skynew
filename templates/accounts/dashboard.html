@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Accounts Dashboard - SkyTex ERP{% endblock %}
 
@@ -13,9 +14,9 @@
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-muted mb-1">Monthly Sales</h6>
-                        <h3 class="mb-0">${{ monthly_sales|floatformat:0 }}</h3>
-                        <small class="text-success">Current Month</small>
+                        <h6 class="text-muted mb-1">Received This Month</h6>
+                        <h3 class="mb-0">{{ monthly_sales|bdt }}</h3>
+                        <small class="text-success">From buyers</small>
                     </div>
                     <div class="card-icon bg-primary bg-opacity-10 text-primary">
                         <i class="fas fa-chart-line fa-2x"></i>
@@ -29,8 +30,8 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-muted mb-1">Accounts Receivable</h6>
-                        <h3 class="mb-0">${{ receivables|floatformat:0 }}</h3>
-                        <small class="text-warning">{{ overdue_invoices }} Overdue</small>
+                        <h3 class="mb-0">{{ receivables|usd }}</h3>
+                        <small class="text-warning" title="Order value (USD) not yet paid by buyers, directly or through LCs">{{ orders_due }} order{{ orders_due|pluralize }} due in 30 days</small>
                     </div>
                     <div class="card-icon bg-warning bg-opacity-10 text-warning">
                         <i class="fas fa-hand-holding-usd fa-2x"></i>
@@ -43,9 +44,9 @@
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="text-muted mb-1">Accounts Payable</h6>
-                        <h3 class="mb-0">${{ payables|floatformat:0 }}</h3>
-                        <small class="text-danger">Due to Suppliers</small>
+                        <h6 class="text-muted mb-1">Owed on LC Loans</h6>
+                        <h3 class="mb-0">{{ loans_outstanding|bdt }}</h3>
+                        <small class="text-danger">{{ open_loans }} open loan{{ open_loans|pluralize }}</small>
                     </div>
                     <div class="card-icon bg-danger bg-opacity-10 text-danger">
                         <i class="fas fa-money-bill-wave fa-2x"></i>
@@ -59,8 +60,8 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-muted mb-1">Cash Balance</h6>
-                        <h3 class="mb-0">${{ cash_balance|floatformat:0 }}</h3>
-                        <small class="text-info">Available Cash</small>
+                        <h3 class="mb-0">{{ cash_balance|bdt }}</h3>
+                        <small class="text-info">Cash {{ cash_in_hand|bdt }} &middot; Bank {{ bank_balance|bdt }}</small>
                     </div>
                     <div class="card-icon bg-info bg-opacity-10 text-info">
                         <i class="fas fa-wallet fa-2x"></i>
@@ -74,7 +75,7 @@
     <div class="row">
         <div class="col-md-8">
             <div class="stat-card">
-                <h6 class="mb-3">Monthly Sales Trend</h6>
+                <h6 class="mb-3">Money Received (Last 6 Months)</h6>
                 <canvas id="salesChart"></canvas>
             </div>
         </div>
@@ -91,7 +92,7 @@
                     <h5>{{ total_suppliers }}</h5>
                 </div>
                 <div class="mb-3">
-                    <small class="text-muted">Active Projects</small>
+                    <small class="text-muted">Open Orders</small>
                     <h5>{{ total_projects }}</h5>
                 </div>
             </div>
@@ -99,11 +100,21 @@
             <div class="stat-card">
                 <h6 class="mb-3">Quick Actions</h6>
                 <div class="d-grid gap-2">
-                    <a href="{% url 'accounts:add_invoice' %}" class="btn btn-gradient btn-sm">
-                        <i class="fas fa-file-invoice"></i> Create Invoice
+                    <a href="{% url 'accounts:add_project' %}" class="btn btn-gradient btn-sm">
+                        <i class="fas fa-plus"></i> Add Order
                     </a>
                     <a href="{% url 'accounts:add_payment' %}" class="btn btn-outline-success btn-sm">
                         <i class="fas fa-hand-holding-usd"></i> Record Payment
+                    </a>
+                    <a href="{% url 'accounts:add_cost' %}" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-receipt"></i> Add Cost
+                    </a>
+                    <a href="{% url 'accounts:voucher_list' %}" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-file-signature"></i> Vouchers
+                        {% if pending_vouchers %}<span class="badge bg-warning text-dark">{{ pending_vouchers }} to approve</span>{% endif %}
+                    </a>
+                    <a href="{% url 'accounts:cashbook' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-book-open"></i> Cash Book
                     </a>
                     <a href="{% url 'accounts:add_lc' %}" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-file-contract"></i> Add LC
@@ -118,33 +129,29 @@
         <div class="col-md-6">
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="mb-0">Recent Invoices</h6>
-                    <a href="{% url 'accounts:invoices_list' %}" class="btn btn-sm btn-link">View All</a>
+                    <h6 class="mb-0">Recent Orders</h6>
+                    <a href="{% url 'accounts:projects_list' %}" class="btn btn-sm btn-link">View All</a>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
                             <tr>
-                                <th>Invoice</th>
+                                <th>Order</th>
                                 <th>Buyer</th>
-                                <th>Amount</th>
-                                <th>Status</th>
+                                <th>Value</th>
+                                <th>Delivery</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for invoice in recent_invoices %}
+                            {% for order in recent_orders %}
                             <tr>
-                                <td>{{ invoice.invoice_number }}</td>
-                                <td>{{ invoice.buyer.buyer_name }}</td>
-                                <td>${{ invoice.net_amount|floatformat:2 }}</td>
-                                <td>
-                                    <span class="badge bg-{% if invoice.status == 'paid' %}success{% elif invoice.status == 'overdue' %}danger{% elif invoice.status == 'pending' %}warning{% else %}secondary{% endif %}">
-                                        {{ invoice.get_status_display }}
-                                    </span>
-                                </td>
+                                <td><a href="{% url 'accounts:project_detail' order.pk %}">{{ order.project_number }}</a></td>
+                                <td>{{ order.buyer.buyer_name }}</td>
+                                <td>{{ order.total_value|usd }}</td>
+                                <td>{{ order.delivery_date }}</td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="4" class="text-center">No recent invoices</td></tr>
+                            <tr><td colspan="4" class="text-center">No orders yet</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -173,7 +180,7 @@
                             <tr>
                                 <td>{{ payment.payment_number }}</td>
                                 <td>{{ payment.get_payment_type_display }}</td>
-                                <td>${{ payment.amount|floatformat:2 }}</td>
+                                <td>{{ payment.amount|bdt }}</td>
                                 <td>
                                     <span class="badge bg-{% if payment.status == 'completed' %}success{% else %}warning{% endif %}">
                                         {{ payment.get_status_display }}
@@ -201,7 +208,7 @@
         data: {
             labels: {{ months|safe }},
             datasets: [{
-                label: 'Monthly Sales ($)',
+                label: 'Received ($)',
                 data: {{ monthly_sales_data|safe }},
                 backgroundColor: '#667eea',
                 borderRadius: 10

@@ -1,16 +1,17 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}{{ project.project_number }} - SkyTex ERP{% endblock %}
 
-{% block page_title %}Project - {{ project.project_number }}{% endblock %}
+{% block page_title %}Order - {{ project.project_number }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="page-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h5 class="mb-1">{{ project.project_number }}</h5>
+                <h5 class="mb-1">{{ project.project_number }}{% if project.buyer_ref %} <small class="text-muted">Buyer Ref. {{ project.buyer_ref }}</small>{% endif %}</h5>
                 <p class="text-muted small mb-0">{{ project.buyer.buyer_name }} &middot; {{ project.description|truncatechars:60 }}</p>
             </div>
             <div>
@@ -27,27 +28,35 @@
         </div>
     </div>
 
-    <!-- Section 10: Financial Summary -->
+    <!-- Financial summary: USD (what the buyer owes) and BDT (money actually in and out) kept apart -->
     <div class="row">
         <div class="col-md-6">
             <div class="stat-card">
-                <h6 class="mb-3">Order &amp; LC</h6>
+                <h6 class="mb-3">Receivable (USD)</h6>
                 <table class="table table-sm mb-0">
-                    <tr><td>Order Value</td><td class="text-end"><strong>{{ project.currency }} {{ project.total_value|floatformat:2 }}</strong></td></tr>
-                    <tr><td>LC Amount</td><td class="text-end">{{ project.lc_amount_total|floatformat:2 }}</td></tr>
-                    <tr><td>LC Paid</td><td class="text-end text-success">{{ project.lc_paid_total|floatformat:2 }}</td></tr>
-                    <tr><td>LC Outstanding</td><td class="text-end text-danger">{{ project.lc_outstanding_total|floatformat:2 }}</td></tr>
+                    <tr><td>Order Value</td><td class="text-end"><strong>{{ project.total_value|usd }}</strong></td></tr>
+                    <tr><td>Received through LC</td><td class="text-end text-success">&minus; {{ project.lc_received_usd|usd }}</td></tr>
+                    <tr><td>Direct payments (USD equivalent)</td><td class="text-end text-success">&minus; {{ project.direct_received_usd|usd }}</td></tr>
+                    <tr class="border-top"><td><strong>Receivable</strong></td><td class="text-end"><strong class="{% if project.receivable_usd > 0 %}text-danger{% else %}text-success{% endif %}">{{ project.receivable_usd|usd }}</strong></td></tr>
+                    <tr><td class="text-muted small">LC amount opened / still to receive</td><td class="text-end text-muted small">{{ project.lc_amount_total|usd }} / {{ project.lc_outstanding_total|usd }}</td></tr>
                 </table>
             </div>
         </div>
         <div class="col-md-6">
             <div class="stat-card">
-                <h6 class="mb-3">Loan Against LC</h6>
+                <h6 class="mb-3">Money In &amp; Out (BDT)</h6>
                 <table class="table table-sm mb-0">
-                    <tr><td>Loan Amount</td><td class="text-end">{{ project.loan_amount_total|floatformat:2 }}</td></tr>
-                    <tr><td>Loan Repaid</td><td class="text-end text-success">{{ project.loan_repaid_total|floatformat:2 }}</td></tr>
-                    <tr><td>Loan Interest</td><td class="text-end">{{ project.loan_interest_total|floatformat:2 }}</td></tr>
-                    <tr><td>Loan Outstanding</td><td class="text-end text-danger">{{ project.loan_outstanding_total|floatformat:2 }}</td></tr>
+                    <tr><td>Received through LC</td><td class="text-end text-success">{{ project.lc_received_bdt|bdt }}</td></tr>
+                    <tr><td>Received directly</td><td class="text-end text-success">{{ project.direct_received_bdt|bdt }}</td></tr>
+                    {% if MERCHANDISING_ENABLED %}
+                    <tr><td>PO Costs</td><td class="text-end">&minus; {{ project.po_cost_total|bdt }}</td></tr>
+                    <tr><td>Other Costs</td><td class="text-end">&minus; {{ project.other_cost_total|bdt }}</td></tr>
+                    {% else %}
+                    <tr><td>Order Costs</td><td class="text-end">&minus; {{ project.costs_total|bdt }}</td></tr>
+                    {% endif %}
+                    <tr><td>LC loan interest &amp; charges</td><td class="text-end">&minus; {{ project.loan_charges_total|bdt }}</td></tr>
+                    <tr class="border-top"><td><strong>Net so far</strong></td>
+                        <td class="text-end"><strong class="{% if project.net_bdt >= 0 %}text-success{% else %}text-danger{% endif %}">{{ project.net_bdt|bdt }}</strong></td></tr>
                 </table>
             </div>
         </div>
@@ -56,34 +65,16 @@
     <div class="row">
         <div class="col-md-6">
             <div class="stat-card">
-                <h6 class="mb-3">Costs</h6>
+                <h6 class="mb-3">Loans Against LC (BDT)</h6>
                 <table class="table table-sm mb-0">
-                    <tr><td>PO Cost</td><td class="text-end">{{ project.po_cost_total|floatformat:2 }}</td></tr>
-                    <tr><td>Other Cost</td><td class="text-end">{{ project.other_cost_total|floatformat:2 }}</td></tr>
-                    <tr><td>Loan Interest</td><td class="text-end">{{ project.loan_interest_total|floatformat:2 }}</td></tr>
-                    <tr class="border-top"><td><strong>Total Cost</strong></td><td class="text-end"><strong>{{ project.actual_total_cost|floatformat:2 }}</strong></td></tr>
-                </table>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="stat-card">
-                <h6 class="mb-3">Profitability</h6>
-                <table class="table table-sm mb-0">
-                    <tr><td>Order Value</td><td class="text-end">{{ project.total_value|floatformat:2 }}</td></tr>
-                    <tr><td>Total Cost</td><td class="text-end">{{ project.actual_total_cost|floatformat:2 }}</td></tr>
-                    <tr class="border-top"><td><strong>Estimated Profit</strong></td>
-                        <td class="text-end">
-                            <strong class="{% if project.estimated_profit > 0 %}text-success{% else %}text-danger{% endif %}">
-                                {{ project.estimated_profit|floatformat:2 }}
-                            </strong>
-                        </td>
-                    </tr>
+                    <tr><td>Loan Amount</td><td class="text-end">{{ project.loan_amount_total|bdt }}</td></tr>
+                    <tr><td>Loan Repaid</td><td class="text-end text-success">{{ project.loan_repaid_total|bdt }}</td></tr>
+                    <tr><td>Loan Outstanding</td><td class="text-end text-danger">{{ project.loan_outstanding_total|bdt }}</td></tr>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Linked records -->
     <div class="row">
         <div class="col-md-6">
             <div class="stat-card">
@@ -98,7 +89,7 @@
                             {% for lc in letters_of_credit %}
                             <tr>
                                 <td><a href="{% url 'accounts:lc_detail' lc.pk %}">{{ lc.lc_number }}</a></td>
-                                <td>{{ lc.lc_amount|floatformat:2 }}</td>
+                                <td>{{ lc.lc_amount|usd }}</td>
                                 <td><span class="badge bg-secondary">{{ lc.get_status_display }}</span></td>
                             </tr>
                             {% empty %}
@@ -109,6 +100,7 @@
                 </div>
             </div>
         </div>
+        {% if MERCHANDISING_ENABLED %}
         <div class="col-md-6">
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -131,6 +123,7 @@
                         </tbody>
                     </table>
                 </div>
+        {% endif %}
             </div>
         </div>
     </div>
@@ -140,17 +133,17 @@
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0">Costs</h6>
-                    <a href="{% url 'accounts:add_cost' %}" class="btn btn-sm btn-link">Add Cost</a>
+                    <a href="{% url 'accounts:add_cost' %}?order={{ project.pk }}" class="btn btn-sm btn-link">Add Cost</a>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-sm">
-                        <thead><tr><th>Type</th><th>PO</th><th>Amount</th></tr></thead>
+                        <thead><tr><th>Type</th>{% if MERCHANDISING_ENABLED %}<th>PO</th>{% endif %}<th>Amount</th></tr></thead>
                         <tbody>
                             {% for cost in costs %}
                             <tr>
                                 <td>{{ cost.get_cost_type_display }}</td>
-                                <td>{{ cost.purchase_order.po_number|default:"-" }}</td>
-                                <td>{{ cost.amount|floatformat:2 }}</td>
+                                {% if MERCHANDISING_ENABLED %}<td>{{ cost.purchase_order.po_number|default:"-" }}</td>{% endif %}
+                                <td>{{ cost.amount|bdt }}</td>
                             </tr>
                             {% empty %}
                             <tr><td colspan="3" class="text-center text-muted">No costs recorded</td></tr>
@@ -160,6 +153,7 @@
                 </div>
             </div>
         </div>
+        {% if MERCHANDISING_ENABLED %}
         <div class="col-md-6">
             <div class="stat-card">
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -173,7 +167,7 @@
                             {% for invoice in invoices %}
                             <tr>
                                 <td><a href="{% url 'accounts:invoice_detail' invoice.pk %}">{{ invoice.invoice_number }}</a></td>
-                                <td>{{ invoice.net_amount|floatformat:2 }}</td>
+                                <td>{{ invoice.net_amount|usd }}</td>
                                 <td><span class="badge bg-secondary">{{ invoice.get_status_display }}</span></td>
                             </tr>
                             {% empty %}
@@ -182,6 +176,7 @@
                         </tbody>
                     </table>
                 </div>
+        {% endif %}
             </div>
         </div>
     </div>

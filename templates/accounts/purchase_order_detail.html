@@ -75,7 +75,7 @@
                                 <td>{{ cost.get_cost_type_display }}</td>
                                 <td>{{ cost.cost_date }}</td>
                                 <td>{{ cost.amount|floatformat:2 }}</td>
-                                <td><span class="badge bg-secondary">{{ cost.get_payment_status_display }}</span></td>
+                                <td><span class="badge bg-secondary">{{ cost.get_paid_by_display }}</span></td>
                             </tr>
                             {% empty %}
                             <tr><td colspan="4" class="text-center text-muted">No costs linked to this PO</td></tr>

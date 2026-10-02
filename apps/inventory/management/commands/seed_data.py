@@ -23,7 +23,7 @@ from apps.accounts.models import (
     Buyer, Supplier, Project, PurchaseOrder, PurchaseOrderItem,
     SalesInvoice, SalesInvoiceItem, Payment,
     CostSheet, BankAccount, BankTransaction,
-    LetterOfCredit, LCPayment, LCLoan, Cost,
+    LetterOfCredit, LCPayment, LCLoan, Cost, CashBookEntry,
 )
 from apps.hr.models import (
     Department, Designation, Employee, Attendance, Leave, ProductionOutput,
@@ -33,14 +33,16 @@ from apps.inventory.models import (
     Fabric, FabricRoll, Trim, GoodsReceipt, GoodsReceiptDetail,
     TrimReceipt, TrimReceiptDetail, ProductionIssue, ProductionIssueDetail,
     FinishedGoods, FinishedGoodsProduction, Dispatch, DispatchDetail,
-    StockMovement,
+    StockMovement, StockTransfer,
     Machine, MachineEvent, SparePart, SparePartConsumption,
     StationeryItem, StationeryConsumption, SupplyAdjustment,
 )
 
+from apps.accounts import services as accounts_services
 from apps.inventory.views import _add_fabric_lot
 
 TODAY = date.today()
+DEMO_RATE = Decimal('121.50')  # BDT per USD for demo LC receipts / payments
 random.seed(42)
 
 
@@ -55,6 +57,7 @@ class Command(BaseCommand):
         self.user = User.objects.filter(is_superuser=True).order_by('id').first()
 
         with transaction.atomic():
+            self.seed_cashbook_opening()
             self.seed_buyers()
             self.seed_suppliers()
             self.seed_projects()
@@ -84,6 +87,7 @@ class Command(BaseCommand):
             self.seed_finished_goods_production()
             self.seed_production_issues()
             self.seed_dispatches()
+            self.seed_stock_transfers()
 
             self.seed_machines()
             self.seed_machine_events()
@@ -154,14 +158,14 @@ class Command(BaseCommand):
             "Classic Crew Tee", "Slim Fit Polo", "Zip-Up Hoodie", "Denim Jeans",
             "Summer Maxi Dress", "Bomber Jacket", "Cargo Shorts", "Flannel Shirt",
         ]
-        statuses = ['quotation', 'order', 'production', 'shipped', 'delivered']
+        statuses = ['order', 'production', 'shipped', 'delivered']
         self.projects = []
         for i, name in enumerate(names, start=1):
-            project_number = f"STY-2026-{i:03d}"
+            buyer_ref = f"STY-2026-{i:03d}"
             qty = random.randint(2000, 15000)
             unit_price = Decimal(random.randint(4, 25))
             obj, _ = Project.objects.get_or_create(
-                project_number=project_number,
+                buyer_ref=buyer_ref,
                 defaults=dict(
                     buyer=random.choice(self.buyers),
                     description=name,
@@ -240,12 +244,15 @@ class Command(BaseCommand):
                     payment = Payment.objects.create(
                         payment_number=pay_number,
                         payment_type='receivable',
-                        payment_method=random.choice(['bank', 'lc', 'online']),
-                        buyer=inv.buyer, sales_invoice=inv,
-                        amount=amount, payment_date=rand_date(0, 8),
+                        payment_method=random.choice(['bank', 'cheque', 'online']),
+                        buyer=inv.buyer, sales_invoice=inv, project=style,
+                        # Received in taka; the invoice is USD.
+                        amount=(amount * DEMO_RATE).quantize(Decimal('0.01')), amount_usd=amount,
+                        payment_date=rand_date(0, 8),
                         created_by=self.user,
                     )
                     payment.process_payment()
+                    accounts_services.record_payment(payment, user=self.user)
 
     def seed_bank_accounts(self):
         data = [
@@ -277,6 +284,15 @@ class Command(BaseCommand):
                         created_by=self.user,
                     )
                     txn.process_transaction()
+
+    def seed_cashbook_opening(self):
+        if CashBookEntry.objects.exists():
+            return
+        accounts_services.post_cashbook('in', Decimal('50000'), "Opening balance - cash in hand",
+                                        entry_date=TODAY - timedelta(days=90), mode='cash', user=self.user)
+        accounts_services.post_cashbook('in', Decimal('750000'), "Opening balance - bank",
+                                        entry_date=TODAY - timedelta(days=90), mode='bank',
+                                        bank_name='Prime Bank Ltd', user=self.user)
 
     def seed_cost_sheets(self):
         if CostSheet.objects.exists():
@@ -310,61 +326,55 @@ class Command(BaseCommand):
                 lc_amount=project.total_value,
                 currency=project.currency,
                 expiry_date=project.delivery_date,
-                status=random.choice(['active', 'utilized']),
+                status='active',
                 created_by=self.user,
             )
-            for j in range(random.randint(1, 2)):
-                LCPayment.objects.create(
-                    lc=lc,
-                    payment_date=rand_date(5, 40),
-                    amount=lc.lc_amount * Decimal(random.choice(['0.2', '0.3', '0.4'])),
-                    bank_name=lc.bank_name,
-                    reference=f"REF-{lc.lc_number}-{j + 1}",
-                    created_by=self.user,
+            accounts_services.record_lc_receipt(LCPayment(
+                lc=lc, payment_date=rand_date(30, 40),
+                amount=(lc.lc_amount * Decimal('0.2')).quantize(Decimal('0.01')),
+                exchange_rate=DEMO_RATE,
+                bank_name=lc.bank_name, reference=f"REF-{lc.lc_number}-1",
+            ), user=self.user)
+            if i in (1, 2):
+                loan = accounts_services.take_loan(LCLoan(
+                    lc=lc, loan_date=rand_date(20, 30), bank_name=lc.bank_name,
+                    loan_amount=(lc.lc_amount * DEMO_RATE * Decimal('0.4')).quantize(Decimal('0.01')),
+                    interest=(lc.lc_amount * DEMO_RATE * Decimal('0.01')).quantize(Decimal('0.01')),
+                    other_charges=Decimal(random.randint(5000, 20000)),
+                ), user=self.user)
+                accounts_services.repay_loan(
+                    loan, (loan.loan_amount * Decimal('0.25')).quantize(Decimal('0.01')),
+                    repayment_date=rand_date(5, 15), bank_name=lc.bank_name, user=self.user,
                 )
-            if i == 1:
-                LCLoan.objects.create(
-                    lc=lc,
-                    loan_date=rand_date(10, 50),
-                    bank_name=lc.bank_name,
-                    loan_amount=lc.lc_amount * Decimal('0.5'),
-                    interest=lc.lc_amount * Decimal('0.02'),
-                    other_charges=Decimal(random.randint(500, 2000)),
-                    repaid_amount=lc.lc_amount * Decimal('0.1'),
-                    created_by=self.user,
-                )
+            if i == 2:
+                # Completed LC: the rest of its loan is adjusted from the realised amount.
+                accounts_services.complete_lc(lc, lc.lc_outstanding, Decimal('122.00'), completion_date=rand_date(1, 4),
+                                              reference=f"REAL-{lc.lc_number}", user=self.user)
 
     def seed_costs(self):
         if Cost.objects.exists():
             return
-        po_cost_types = ['fabric', 'accessories', 'production']
-        other_cost_types = ['transport', 'commission', 'bank_charges', 'documentation', 'miscellaneous']
-        purchase_orders = list(PurchaseOrder.objects.all())
+        order_cost_types = ['fabric', 'accessories', 'production', 'transport', 'commission', 'documentation']
         for project in self.projects:
-            project_pos = [po for po in purchase_orders if po.style_id == project.pk]
-            for cost_type in random.sample(po_cost_types, k=2):
-                Cost.objects.create(
-                    project=project,
-                    purchase_order=random.choice(project_pos) if project_pos else None,
-                    cost_type=cost_type,
-                    cost_date=rand_date(5, 60),
-                    description=f"{cost_type.title()} cost for {project.project_number}",
-                    amount=Decimal(random.randint(2000, 15000)),
-                    currency=project.currency,
-                    payment_status=random.choice(['unpaid', 'partial', 'paid']),
-                    created_by=self.user,
-                )
-            for cost_type in random.sample(other_cost_types, k=2):
-                Cost.objects.create(
+            for cost_type in random.sample(order_cost_types, k=3):
+                accounts_services.record_cost(Cost(
                     project=project,
                     cost_type=cost_type,
                     cost_date=rand_date(5, 60),
-                    description=f"{cost_type.title()} cost for {project.project_number}",
-                    amount=Decimal(random.randint(500, 5000)),
+                    description=f"{cost_type.title()} for {project.buyer_ref or project.project_number}",
+                    amount=Decimal(random.randint(1000, 15000)),
                     currency=project.currency,
-                    payment_status=random.choice(['unpaid', 'partial', 'paid']),
-                    created_by=self.user,
-                )
+                    paid_by=random.choice(['cash', 'bank']),
+                    bank_name='Prime Bank Ltd',
+                    supplier=random.choice(self.suppliers) if cost_type in ('fabric', 'accessories') else None,
+                ), user=self.user)
+        for cost_type, amount in [('rent', 60000), ('utilities', 18000), ('salaries', 250000),
+                                  ('office', 7500), ('maintenance', 12000)]:
+            accounts_services.record_cost(Cost(
+                cost_type=cost_type, cost_date=rand_date(1, 25),
+                description=f"{dict(Cost.COST_TYPES)[cost_type]} - this month",
+                amount=Decimal(amount), paid_by='bank' if amount > 10000 else 'cash', bank_name='Prime Bank Ltd',
+            ), user=self.user)
 
     # --------------------------------------------------------------------- hr
 
@@ -830,6 +840,23 @@ class Command(BaseCommand):
                     notes=f"Dispatched to {project.buyer.buyer_name}", created_by=self.user,
                 )
 
+    def seed_stock_transfers(self):
+        """A couple of transfer requests left pending, so Pending Approvals has demo rows."""
+        if StockTransfer.objects.exists():
+            return
+        lot = FabricRoll.objects.filter(status='in_stock', remaining_length__gt=20).first()
+        if lot:
+            StockTransfer.objects.create(
+                fabric=lot.fabric, fabric_roll=lot, quantity=Decimal('10'), reason='issue',
+                issued_to='Cutting - Line 1', notes='Demo: awaiting approval', requested_by=self.user,
+            )
+        trim = next((t for t in self.trims if t.current_stock > 50), None)
+        if trim:
+            StockTransfer.objects.create(
+                trim=trim, quantity=Decimal('25'), reason='issue',
+                issued_to='Sewing - Line 2', notes='Demo: awaiting approval', requested_by=self.user,
+            )
+
     # ---------------------------------------------------------------- machines
 
     def seed_machines(self):
@@ -1068,7 +1095,7 @@ class Command(BaseCommand):
             ("Costs", Cost.objects.count()), ("Departments", Department.objects.count()),
             ("Employees", Employee.objects.count()), ("Fabrics", Fabric.objects.count()),
             ("Trims", Trim.objects.count()), ("Finished Goods", FinishedGoods.objects.count()),
-            ("Dispatches", Dispatch.objects.count()),
+            ("Dispatches", Dispatch.objects.count()), ("Stock Transfers", StockTransfer.objects.count()),
             ("Stock Movements", StockMovement.objects.count()),
             ("Machines", Machine.objects.count()), ("Machine Events", MachineEvent.objects.count()),
             ("Spare Parts", SparePart.objects.count()), ("Spare Part Consumptions", SparePartConsumption.objects.count()),

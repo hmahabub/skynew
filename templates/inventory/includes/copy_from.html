@@ -1,0 +1,30 @@
+{% comment %}
+"Copy from existing" picker shown on Add pages. Picking an item reloads the
+page with ?copy_from=<pk>, which pre-fills the form from it.
+Needs in context: copy_choices [(pk, label)], copy_source (or None).
+{% endcomment %}
+{% if copy_choices %}
+<div class="alert alert-light border py-2 mb-3">
+    <div class="row g-2 align-items-center">
+        <div class="col-md-auto">
+            <label class="form-label small mb-0" for="copyFromSelect">
+                <i class="fas fa-copy"></i> Copy from existing
+            </label>
+        </div>
+        <div class="col-md">
+            <select id="copyFromSelect" class="form-select form-select-sm"
+                    onchange="window.location.search = this.value ? '?copy_from=' + this.value : '';">
+                <option value="">Start blank</option>
+                {% for pk, label in copy_choices %}
+                <option value="{{ pk }}" {% if copy_source and copy_source.pk == pk %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    {% if copy_source %}
+    <div class="small text-muted mt-2">
+        Copied from <strong>{{ copy_source }}</strong> - change what's different and save. Stock is not copied.
+    </div>
+    {% endif %}
+</div>
+{% endif %}

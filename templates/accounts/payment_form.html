@@ -27,14 +27,19 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Payment Number *</label>
-                                {{ form.payment_number }}
+                                <label class="form-label">Payment No.</label>
+                                <div class="form-control bg-light text-muted">Generated on save</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Payment Type *</label>
-                                {{ form.payment_type }}
+                                <label class="form-label">Payment Type{% if not form.receivable_only %} *{% endif %}</label>
+                                {% if form.receivable_only %}
+                                    {{ form.payment_type }}
+                                    <div class="form-control bg-light">Money received from a buyer</div>
+                                {% else %}
+                                    {{ form.payment_type }}
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -63,37 +68,51 @@
                                     {{ form.buyer }}
                                 </div>
                             </div>
+                            {% if 'sales_invoice' in form.fields %}
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Sales Invoice *</label>
                                     {{ form.sales_invoice }}
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                     
+                    {% if form.receivable_only %}
+                    <div class="alert alert-secondary py-2 small">
+                        Use this for money a buyer pays outside an LC (advance, TT, cash). Money received under an LC
+                        goes on the LC's page. Money paid to suppliers is entered as a
+                        <a href="{% url 'accounts:costs_list' %}">Cost</a>.
+                    </div>
+                    {% endif %}
+
                     <!-- Payable Section -->
                     <div id="payableSection" style="display: none;">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
+                                    {% if form.supplier %}
                                     <label class="form-label">Supplier *</label>
                                     {{ form.supplier }}
+                                    {% endif %}
                                 </div>
                             </div>
+                            {% if 'purchase_order' in form.fields %}
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Purchase Order *</label>
                                     {{ form.purchase_order }}
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Amount *</label>
+                                <label class="form-label">Amount (BDT) *</label>
                                 {{ form.amount }}
                             </div>
                         </div>
@@ -105,6 +124,13 @@
                         </div>
                     </div>
                     
+                    {% if form.project %}
+                    <div class="row">
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.project %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.amount_usd %}</div>
+                    </div>
+                    {% endif %}
+
                     <div class="mb-3">
                         <label class="form-label">Notes</label>
                         {{ form.notes }}
@@ -130,32 +156,21 @@
         const receivableSection = document.getElementById('receivableSection');
         const payableSection = document.getElementById('payableSection');
         
+        function setRequired(id, required) {
+            const el = document.getElementById(id);
+            if (el) el.required = required;
+        }
+
         function toggleSections() {
             const type = paymentType.value;
-            if (type === 'receivable') {
-                receivableSection.style.display = 'block';
-                payableSection.style.display = 'none';
-                document.getElementById('id_buyer').required = true;
-                document.getElementById('id_sales_invoice').required = true;
-                document.getElementById('id_supplier').required = false;
-                document.getElementById('id_purchase_order').required = false;
-            } else if (type === 'payable') {
-                receivableSection.style.display = 'none';
-                payableSection.style.display = 'block';
-                document.getElementById('id_buyer').required = false;
-                document.getElementById('id_sales_invoice').required = false;
-                document.getElementById('id_supplier').required = true;
-                document.getElementById('id_purchase_order').required = true;
-            } else {
-                receivableSection.style.display = 'none';
-                payableSection.style.display = 'none';
-                document.getElementById('id_buyer').required = false;
-                document.getElementById('id_sales_invoice').required = false;
-                document.getElementById('id_supplier').required = false;
-                document.getElementById('id_purchase_order').required = false;
-            }
+            receivableSection.style.display = type === 'receivable' ? 'block' : 'none';
+            payableSection.style.display = type === 'payable' ? 'block' : 'none';
+            setRequired('id_buyer', type === 'receivable');
+            setRequired('id_sales_invoice', type === 'receivable');
+            setRequired('id_supplier', type === 'payable');
+            setRequired('id_purchase_order', type === 'payable');
         }
-        
+
         paymentType.addEventListener('change', toggleSections);
         toggleSections(); // Initial state
     });

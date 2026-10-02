@@ -12,7 +12,7 @@ urlpatterns = [
     path('fabrics/add/', views.add_fabric, name='add_fabric'),
     path('fabrics/<int:pk>/edit/', views.edit_fabric, name='edit_fabric'),
     path('fabrics/<int:pk>/add-stock/', views.add_fabric_stock, name='add_fabric_stock'),
-    path('fabrics/<int:pk>/remove-stock/', views.remove_fabric_stock, name='remove_fabric_stock'),
+    path('fabrics/<int:pk>/transfer-stock/', views.transfer_fabric_stock, name='transfer_fabric_stock'),
     path('fabrics/<int:pk>/ledger/', views.fabric_stock_ledger, name='fabric_stock_ledger'),
 
     # Trim Management
@@ -20,7 +20,11 @@ urlpatterns = [
     path('trims/add/', views.add_trim, name='add_trim'),
     path('trims/<int:pk>/edit/', views.edit_trim, name='edit_trim'),
     path('trims/<int:pk>/add-stock/', views.add_trim_stock, name='add_trim_stock'),
-    path('trims/<int:pk>/remove-stock/', views.remove_trim_stock, name='remove_trim_stock'),
+    path('trims/<int:pk>/transfer-stock/', views.transfer_trim_stock, name='transfer_trim_stock'),
+
+    # Stock transfers (need admin approval)
+    path('transfers/<int:pk>/approve/', views.approve_stock_transfer, name='approve_stock_transfer'),
+    path('transfers/<int:pk>/reject/', views.reject_stock_transfer, name='reject_stock_transfer'),
     path('trims/<int:pk>/ledger/', views.trim_stock_ledger, name='trim_stock_ledger'),
 
     # Goods Receipt (fabric) - legacy, kept for historical records/direct links only

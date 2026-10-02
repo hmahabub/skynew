@@ -73,6 +73,7 @@
                         <th>Color</th>
                         <th>GSM</th>
                         <th>Width</th>
+                        {% if user.is_superuser %}<th title="Only admins can see this">Unit Price</th>{% endif %}
                         <th>Stock</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -100,9 +101,13 @@
                         <td>{{ fabric.color }}</td>
                         <td>{{ fabric.gsm }} gsm</td>
                         <td>{{ fabric.width }}"</td>
+                        {% if user.is_superuser %}<td>{{ fabric.unit_price|default_if_none:"-" }}</td>{% endif %}
                         <td>
                             <strong>{{ fabric.current_stock|floatformat:0 }}</strong>
                             <small class="text-muted">{{ fabric.unit }}</small>
+                            {% if fabric.pending_transfer_qty %}
+                            <div class="small text-warning" title="Transfers waiting for admin approval">{{ fabric.pending_transfer_qty|floatformat:"-2" }} awaiting approval</div>
+                            {% endif %}
                         </td>
                         <td>
                             {% if fabric.stock_status == 'in_stock' %}
@@ -116,13 +121,15 @@
                                 <button type="button" class="btn btn-outline-success" title="Add Stock"
                                         data-fabric-stock="add" data-fabric-id="{{ fabric.pk }}"
                                         data-fabric-name="{{ fabric.fabric_code }} - {{ fabric.fabric_name }}"
-                                        data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}">
+                                        data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}"
+                                        data-fabric-pending-qty="{{ fabric.pending_transfer_qty|default:0 }}">
                                     <i class="fas fa-plus"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" title="Remove Stock"
-                                        data-fabric-stock="remove" data-fabric-id="{{ fabric.pk }}"
+                                <button type="button" class="btn btn-outline-danger" title="Transfer Stock (needs admin approval)"
+                                        data-fabric-stock="transfer" data-fabric-id="{{ fabric.pk }}"
                                         data-fabric-name="{{ fabric.fabric_code }} - {{ fabric.fabric_name }}"
                                         data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}"
+                                        data-fabric-pending-qty="{{ fabric.pending_transfer_qty|default:0 }}"
                                         {% if fabric.current_stock <= 0 %}disabled{% endif %}>
                                     <i class="fas fa-minus"></i>
                                 </button>
@@ -132,12 +139,15 @@
                                 <a href="{% url 'inventory:edit_fabric' fabric.pk %}" class="btn btn-outline-warning" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <a href="{% url 'inventory:add_fabric' %}?copy_from={{ fabric.pk }}" class="btn btn-outline-secondary" title="Copy into a new item">
+                                    <i class="fas fa-copy"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="text-center py-4">
+                        <td colspan="{% if user.is_superuser %}11{% else %}10{% endif %}" class="text-center py-4">
                             <i class="fas fa-tshirt fa-3x text-muted mb-3 d-block"></i>
                             <p class="text-muted">No fabrics found</p>
                             <a href="{% url 'inventory:add_fabric' %}" class="btn btn-gradient btn-sm">

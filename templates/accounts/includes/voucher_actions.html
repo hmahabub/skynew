@@ -1,0 +1,16 @@
+{% comment %}Approve / reject buttons for one pending voucher (admin only). Needs: voucher.{% endcomment %}
+<div class="d-flex gap-1">
+    <form method="post" action="{% url 'accounts:approve_voucher' voucher.pk %}"
+          onsubmit="return confirm('Approve {{ voucher.voucher_number }}? {{ voucher.amount|floatformat:2 }} will be recorded as a cost and paid from the cash book.');">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn btn-sm btn-outline-success" title="Approve"><i class="fas fa-check"></i></button>
+    </form>
+    <form method="post" action="{% url 'accounts:reject_voucher' voucher.pk %}"
+          onsubmit="var r = prompt('Reason for rejecting (optional):', ''); if (r === null) return false; this.reason.value = r; return true;">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="reason" value="">
+        <button type="submit" class="btn btn-sm btn-outline-danger" title="Reject"><i class="fas fa-times"></i></button>
+    </form>
+</div>

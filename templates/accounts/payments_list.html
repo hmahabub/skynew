@@ -1,104 +1,125 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Payments - SkyTex ERP{% endblock %}
 
-{% block page_title %}Payment Management{% endblock %}
+{% block page_title %}Payments{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <h5 class="mb-1">Payment Management</h5>
-                <p class="text-muted small mb-0">Manage all payments and receipts</p>
+                <h5 class="mb-1">Payments</h5>
+                <p class="text-muted small mb-0">All money received from buyers - paid directly or through an LC.</p>
             </div>
-            <div>
+            <div class="d-flex gap-2">
                 <a href="{% url 'accounts:add_payment' %}" class="btn btn-gradient">
-                    <i class="fas fa-plus"></i> Add Payment
+                    <i class="fas fa-hand-holding-usd"></i> Record Payment
+                </a>
+                <a href="{% url 'accounts:add_lc_receipt' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-file-contract"></i> Record LC Payment
                 </a>
             </div>
         </div>
     </div>
-    
-    <!-- Filter -->
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Total Received</div>
+                <div class="h3 mb-0">{{ total_received|bdt }}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Direct (advance / TT / cash)</div>
+                <div class="h3 mb-0">{{ total_direct|bdt }}</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card text-center">
+                <div class="text-muted small">Through LCs</div>
+                <div class="h3 mb-0">{{ total_lc|bdt }}</div>
+                <div class="small text-muted">{{ total_lc_usd|usd }}</div>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item"><a class="nav-link {% if not current_source %}active{% endif %}" href="?source=&buyer={{ current_buyer }}&from={{ date_from }}&to={{ date_to }}">All Payments</a></li>
+        <li class="nav-item"><a class="nav-link {% if current_source == 'direct' %}active{% endif %}" href="?source=direct&buyer={{ current_buyer }}&from={{ date_from }}&to={{ date_to }}">Direct</a></li>
+        <li class="nav-item"><a class="nav-link {% if current_source == 'lc' %}active{% endif %}" href="?source=lc&buyer={{ current_buyer }}&from={{ date_from }}&to={{ date_to }}">Through LC</a></li>
+    </ul>
+
     <div class="filter-section">
         <form method="get" class="row g-3">
-            <div class="col-md-3">
-                <label class="form-label small">Payment Type</label>
-                <select name="type" class="form-select">
-                    <option value="">All Types</option>
-                    {% for type_code, type_name in payment_types %}
-                    <option value="{{ type_code }}" {% if current_type == type_code %}selected{% endif %}>
-                        {{ type_name }}
-                    </option>
+            <input type="hidden" name="source" value="{{ current_source }}">
+            <div class="col-md-4">
+                <label class="form-label small">Buyer</label>
+                <select name="buyer" class="form-select">
+                    <option value="">All Buyers</option>
+                    {% for b in buyers %}
+                    <option value="{{ b.pk }}" {% if current_buyer == b.pk|stringformat:'s' %}selected{% endif %}>{{ b.buyer_name }}</option>
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-3">
+                <label class="form-label small">From</label>
+                <input type="date" name="from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small">To</label>
+                <input type="date" name="to" class="form-control" value="{{ date_to }}">
+            </div>
             <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-filter"></i> Filter
-                </button>
+                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i> Filter</button>
             </div>
         </form>
     </div>
-    
-    <!-- Payments Table -->
+
     <div class="stat-card">
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>Payment #</th>
-                        <th>Type</th>
-                        <th>Method</th>
-                        <th>From/To</th>
-                        <th>Amount</th>
                         <th>Date</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th>Payment #</th>
+                        <th>Buyer</th>
+                        <th>Received By</th>
+                        <th>Order</th>
+                        <th class="text-end">Amount (BDT)</th>
+                        <th class="text-end">USD</th>
+                        <th>Reference</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for payment in payments %}
+                    {% for row in rows %}
                     <tr>
-                        <td><strong>{{ payment.payment_number }}</strong></td>
+                        <td>{{ row.date }}</td>
+                        <td><strong>{{ row.number }}</strong></td>
                         <td>
-                            <span class="badge bg-{% if payment.payment_type == 'receivable' %}success{% else %}danger{% endif %}">
-                                {{ payment.get_payment_type_display }}
-                            </span>
+                            {{ row.party }}
+                            {% if row.payment_type == 'payable' %}<span class="badge bg-danger">Paid to supplier</span>{% endif %}
                         </td>
-                        <td>{{ payment.get_payment_method_display }}</td>
                         <td>
-                            {% if payment.payment_type == 'receivable' %}
-                                {{ payment.buyer.buyer_name|default:"-" }}
+                            {% if row.source == 'lc' %}
+                                <a href="{% url 'accounts:lc_detail' row.lc.pk %}" class="badge bg-primary text-decoration-none">{{ row.via }}</a>
                             {% else %}
-                                {{ payment.supplier.supplier_name|default:"-" }}
+                                <span class="badge bg-success">{{ row.via }}</span>
                             {% endif %}
                         </td>
-                        <td>${{ payment.amount|floatformat:2 }}</td>
-                        <td>{{ payment.payment_date }}</td>
-                        <td>
-                            <span class="badge bg-{% if payment.status == 'completed' %}success{% elif payment.status == 'pending' %}warning{% else %}danger{% endif %}">
-                                {{ payment.get_status_display }}
-                            </span>
-                        </td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <a href="#" class="btn btn-outline-primary" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </div>
-                        </td>
+                        <td>{% if row.order %}<a href="{% url 'accounts:project_detail' row.order.pk %}">{{ row.order.project_number }}</a>{% else %}-{% endif %}</td>
+                        <td class="text-end"><strong class="{% if row.payment_type == 'payable' %}text-danger{% endif %}">{{ row.bdt|bdt }}</strong></td>
+                        <td class="text-end">{% if row.usd %}{{ row.usd|usd }}{% if row.rate %}<div class="small text-muted">@ {{ row.rate|floatformat:2 }}</div>{% endif %}{% else %}-{% endif %}</td>
+                        <td>{{ row.reference|default:"-" }}{% if row.notes %}<div class="small text-muted">{{ row.notes|truncatechars:40 }}</div>{% endif %}</td>
                     </tr>
                     {% empty %}
                     <tr>
                         <td colspan="8" class="text-center py-4">
                             <i class="fas fa-hand-holding-usd fa-3x text-muted mb-3 d-block"></i>
                             <p class="text-muted">No payments found</p>
-                            <a href="{% url 'accounts:add_payment' %}" class="btn btn-gradient btn-sm">
-                                <i class="fas fa-plus"></i> Add First Payment
-                            </a>
                         </td>
                     </tr>
                     {% endfor %}

@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Letters of Credit - SkyTex ERP{% endblock %}
 
@@ -48,7 +49,7 @@
                 <thead>
                     <tr>
                         <th>LC #</th>
-                        <th>Project</th>
+                        <th>Order</th>
                         <th>Bank</th>
                         <th>LC Amount</th>
                         <th>Outstanding</th>
@@ -63,13 +64,13 @@
                         <td><strong>{{ lc.lc_number }}</strong></td>
                         <td>{{ lc.project.project_number }}</td>
                         <td>{{ lc.bank_name }}</td>
-                        <td>{{ lc.currency }} {{ lc.lc_amount|floatformat:2 }}</td>
+                        <td>{{ lc.lc_amount|usd }}</td>
                         <td class="{% if lc.lc_outstanding > 0 %}text-danger{% else %}text-success{% endif %}">
-                            {{ lc.lc_outstanding|floatformat:2 }}
+                            {{ lc.lc_outstanding|usd }}
                         </td>
                         <td>{{ lc.expiry_date }}</td>
                         <td>
-                            <span class="badge bg-{% if lc.status == 'active' %}success{% elif lc.status == 'utilized' %}info{% elif lc.status == 'expired' %}warning{% else %}danger{% endif %}">
+                            <span class="badge bg-{% if lc.status == 'active' %}success{% elif lc.status == 'completed' %}info{% elif lc.status == 'expired' %}warning{% else %}danger{% endif %}">
                                 {{ lc.get_status_display }}
                             </span>
                         </td>

@@ -1,13 +1,14 @@
 {% comment %}
-"+" (Add Stock) and "-" (Remove Stock) popups for fabrics.
+"+" (Add Stock) and "-" (Transfer Stock) popups for fabrics.
 
-Open them with buttons like:
+Open them with buttons like (data-fabric-stock="add" or "transfer"):
     <button type="button" class="btn ..." data-fabric-stock="add"
             data-fabric-id="{{ fabric.pk }}" data-fabric-name="{{ fabric.fabric_name }}"
-            data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}">
+            data-fabric-unit="{{ fabric.unit }}" data-fabric-stock-qty="{{ fabric.current_stock }}"
+            data-fabric-pending-qty="{{ fabric.pending_transfer_qty|default:0 }}">
 
-Needs in context: stock_in_form, stock_out_reasons, fabric_lots
-({fabric_id: [{id, lot, remaining}]} for the Remove Stock lot dropdown).
+Needs in context: stock_in_form, transfer_reasons, fabric_lots
+({fabric_id: [{id, lot, available, pending}]} for the Transfer Stock lot dropdown).
 {% endcomment %}
 
 {{ fabric_lots|json_script:"fabric-lots-data" }}
@@ -66,56 +67,62 @@ Needs in context: stock_in_form, stock_out_reasons, fabric_lots
     </div>
 </div>
 
-<!-- Remove Stock (-) -->
-<div class="modal fade" id="removeFabricStockModal" tabindex="-1" aria-labelledby="removeFabricStockTitle" aria-hidden="true">
+<!-- Transfer Stock (-) - needs admin approval -->
+<div class="modal fade" id="transferFabricStockModal" tabindex="-1" aria-labelledby="transferFabricStockTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form method="post" class="modal-content" data-action-template="{% url 'inventory:remove_fabric_stock' 0 %}">
+        <form method="post" class="modal-content" data-action-template="{% url 'inventory:transfer_fabric_stock' 0 %}">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
             <div class="modal-header">
-                <h5 class="modal-title" id="removeFabricStockTitle">
-                    <i class="fas fa-minus-circle text-danger"></i> Remove Stock
+                <h5 class="modal-title" id="transferFabricStockTitle">
+                    <i class="fas fa-minus-circle text-danger"></i> Transfer Stock
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <p class="mb-3">
                     <strong class="js-fabric-name"></strong><br>
-                    <small class="text-muted">Currently in stock: <span class="js-fabric-stock"></span> <span class="js-fabric-unit"></span></small>
+                    <small class="text-muted">
+                        Currently in stock: <span class="js-fabric-stock"></span> <span class="js-fabric-unit"></span>
+                        <span class="js-fabric-pending-wrap d-none">&middot; <span class="js-fabric-pending"></span> awaiting approval</span>
+                    </small>
                 </p>
+                <div class="alert alert-warning py-2 small mb-3">
+                    <i class="fas fa-user-shield"></i> Needs admin approval - stock changes only once it is approved.
+                </div>
                 <div class="mb-3 js-lot-group">
-                    <label class="form-label" for="removeStockLot">Take from Lot *</label>
-                    <select name="lot" id="removeStockLot" class="form-select"></select>
+                    <label class="form-label" for="transferFabricLot">Take from Lot *</label>
+                    <select name="lot" id="transferFabricLot" class="form-select"></select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label" for="removeStockQuantity">Quantity to remove *</label>
+                    <label class="form-label" for="transferFabricQuantity">Quantity to transfer *</label>
                     <div class="input-group">
-                        <input type="number" name="quantity" id="removeStockQuantity" class="form-control" step="0.01" min="0.01" required>
+                        <input type="number" name="quantity" id="transferFabricQuantity" class="form-control" step="0.01" min="0.01" required>
                         <span class="input-group-text js-fabric-unit"></span>
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label" for="removeStockReason">Reason *</label>
-                    <select name="reason" id="removeStockReason" class="form-select">
-                        {% for value, label in stock_out_reasons %}
+                    <label class="form-label" for="transferFabricReason">Reason *</label>
+                    <select name="reason" id="transferFabricReason" class="form-select">
+                        {% for value, label in transfer_reasons %}
                         <option value="{{ value }}">{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label" for="removeStockIssuedTo">Issued To</label>
-                    <input type="text" name="issued_to" id="removeStockIssuedTo" class="form-control" maxlength="200"
+                    <label class="form-label" for="transferFabricIssuedTo">Issued To</label>
+                    <input type="text" name="issued_to" id="transferFabricIssuedTo" class="form-control" maxlength="200"
                            placeholder="e.g. Cutting - Line 3, or a person">
                 </div>
                 <div class="mb-0">
-                    <label class="form-label" for="removeStockNotes">Notes</label>
-                    <textarea name="notes" id="removeStockNotes" class="form-control" rows="2" placeholder="Anything else worth noting"></textarea>
+                    <label class="form-label" for="transferFabricNotes">Notes</label>
+                    <textarea name="notes" id="transferFabricNotes" class="form-control" rows="2" placeholder="Anything else worth noting"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="submit" class="btn btn-danger">
-                    <i class="fas fa-minus"></i> Remove Stock
+                    <i class="fas fa-paper-plane"></i> Send for Approval
                 </button>
             </div>
         </form>
@@ -127,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var lotsByFabric = JSON.parse(document.getElementById('fabric-lots-data').textContent);
     var modals = {
         add: document.getElementById('addFabricStockModal'),
-        remove: document.getElementById('removeFabricStockModal'),
+        transfer: document.getElementById('transferFabricStockModal'),
     };
 
     function fillCommon(modal, btn) {
@@ -137,6 +144,9 @@ document.addEventListener('DOMContentLoaded', function () {
         modal.querySelectorAll('.js-fabric-name').forEach(function (el) { el.textContent = btn.dataset.fabricName; });
         modal.querySelectorAll('.js-fabric-unit').forEach(function (el) { el.textContent = btn.dataset.fabricUnit; });
         modal.querySelectorAll('.js-fabric-stock').forEach(function (el) { el.textContent = btn.dataset.fabricStockQty; });
+        var pending = parseFloat(btn.dataset.fabricPendingQty || '0');
+        modal.querySelectorAll('.js-fabric-pending').forEach(function (el) { el.textContent = btn.dataset.fabricPendingQty; });
+        modal.querySelectorAll('.js-fabric-pending-wrap').forEach(function (el) { el.classList.toggle('d-none', !pending); });
     }
 
     function fillLots(modal, fabricId) {
@@ -145,15 +155,17 @@ document.addEventListener('DOMContentLoaded', function () {
         var qty = modal.querySelector('input[name="quantity"]');
         select.innerHTML = '';
         // No lots (e.g. stock from an old goods receipt): hide the lot picker
-        // and just reduce the fabric's total.
+        // and just use the fabric's total.
         modal.querySelector('.js-lot-group').classList.toggle('d-none', lots.length === 0);
         select.required = lots.length > 0;
         if (lots.length > 1) {
             select.add(new Option('Select a lot...', ''));
         }
         lots.forEach(function (lot) {
-            var option = new Option(lot.lot + ' (' + lot.remaining + ' left)', lot.id);
-            option.dataset.remaining = lot.remaining;
+            var label = lot.lot + ' (' + lot.available + ' available';
+            if (parseFloat(lot.pending)) label += ', ' + lot.pending + ' awaiting approval';
+            var option = new Option(label + ')', lot.id);
+            option.dataset.remaining = lot.available;
             select.add(option);
         });
         function syncMax() {
@@ -173,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var kind = btn.dataset.fabricStock;
             var modal = modals[kind];
             fillCommon(modal, btn);
-            if (kind === 'remove') {
+            if (kind === 'transfer') {
                 fillLots(modal, btn.dataset.fabricId);
             }
             bootstrap.Modal.getOrCreateInstance(modal).show();

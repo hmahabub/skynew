@@ -1,99 +1,72 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}Add Cost - SkyTex ERP{% endblock %}
+{% block title %}{{ page_title }} - SkyTex ERP{% endblock %}
 
-{% block page_title %}Add Cost{% endblock %}
+{% block page_title %}{{ page_title }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-lg-8">
             <div class="stat-card">
+                <ul class="nav nav-pills mb-3">
+                    <li class="nav-item">
+                        <a class="nav-link {% if kind == 'order' %}active{% endif %}" href="{% url 'accounts:add_cost' %}">
+                            <i class="fas fa-tshirt"></i> Order Cost
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if kind == 'overall' %}active{% endif %}" href="{% url 'accounts:add_overall_cost' %}">
+                            <i class="fas fa-building"></i> Overall Cost
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="alert alert-secondary py-2 small">
+                    {% if kind == 'order' %}
+                        A cost for one order (fabric, accessories, washing...).
+                    {% else %}
+                        A running cost of the business, not tied to an order (rent, salaries, utilities...).
+                    {% endif %}
+                    It's recorded as <strong>paid</strong> and taken out of the Cash Book straight away.
+                    Need approval first? <a href="{% url 'accounts:add_voucher' %}">Raise an expense voucher</a> instead.
+                </div>
+
                 <form method="post">
                     {% csrf_token %}
+                    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
 
-                    {% if form.errors %}
-                        <div class="alert alert-danger">
-                            <h6>Please fix the following errors:</h6>
-                            <ul class="mb-0">
-                                {% for field, errors in form.errors.items %}
-                                    <li>{{ field }}: {{ errors|join:", " }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
-
-                    <div class="alert alert-secondary py-2 small">
-                        Leave Purchase Order blank for an "Other Cost" entry; set it to record a PO-linked cost.
+                    <div class="row">
+                        {% if form.project %}
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.project %}</div>
+                        {% endif %}
+                        {% if form.purchase_order %}
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.purchase_order %}</div>
+                        {% endif %}
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.cost_type %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.supplier %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.cost_date %}</div>
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Project *</label>
-                                {{ form.project }}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Purchase Order</label>
-                                {{ form.purchase_order }}
-                            </div>
-                        </div>
+                        <div class="col-md-8">{% include 'accounts/includes/field.html' with field=form.description %}</div>
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.amount %}</div>
                     </div>
 
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Cost Type *</label>
-                                {{ form.cost_type }}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Cost Date *</label>
-                                {{ form.cost_date }}
-                            </div>
-                        </div>
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.paid_by %}</div>
+                        <div class="col-md-4 js-bank-only">{% include 'accounts/includes/field.html' with field=form.bank_name %}</div>
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.reference %}</div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        {{ form.description }}
-                    </div>
+                    {% include 'accounts/includes/field.html' with field=form.remarks %}
 
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">Amount *</label>
-                                {{ form.amount }}
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">Currency</label>
-                                {{ form.currency }}
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label class="form-label">Payment Status</label>
-                                {{ form.payment_status }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Remarks</label>
-                        {{ form.remarks }}
-                    </div>
-
-                    <div class="mt-4 border-top pt-3">
+                    <div class="mt-2 border-top pt-3">
                         <button type="submit" class="btn btn-gradient">
-                            <i class="fas fa-save"></i> Add Cost
+                            <i class="fas fa-save"></i> Save &amp; Pay
                         </button>
-                        <a href="{% url 'accounts:costs_list' %}" class="btn btn-secondary">
+                        <a href="{% url 'accounts:costs_list' %}?scope={{ kind }}" class="btn btn-secondary">
                             <i class="fas fa-times"></i> Cancel
                         </a>
                     </div>
@@ -102,4 +75,5 @@
         </div>
     </div>
 </div>
+{% include 'accounts/includes/bank_toggle.html' with select_id=form.paid_by.id_for_label %}
 {% endblock %}

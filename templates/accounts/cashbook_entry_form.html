@@ -1,0 +1,60 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Cash Book Entry - SkyTex ERP{% endblock %}
+
+{% block page_title %}Cash Book Entry{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="stat-card">
+                <div class="alert alert-secondary py-2 small">
+                    For money that isn't a payment, cost or LC transaction - e.g. an opening balance, other income,
+                    or moving money between cash in hand and the bank.
+                    Costs go through <a href="{% url 'accounts:costs_list' %}">Costs</a> instead.
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+
+                    {% include 'accounts/includes/field.html' with field=form.entry_type %}
+                    <div class="row">
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.entry_date %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.amount %}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 js-mode">{% include 'accounts/includes/field.html' with field=form.mode %}</div>
+                        <div class="col-md-6 js-bank-name">{% include 'accounts/includes/field.html' with field=form.bank_name %}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8">{% include 'accounts/includes/field.html' with field=form.description %}</div>
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.reference %}</div>
+                    </div>
+
+                    <div class="mt-2 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient"><i class="fas fa-save"></i> Save</button>
+                        <a href="{% url 'accounts:cashbook' %}" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var type = document.getElementById('{{ form.entry_type.id_for_label }}');
+    var mode = document.getElementById('{{ form.mode.id_for_label }}');
+    function sync() {
+        var isTransfer = type.value === 'to_bank' || type.value === 'to_cash';
+        // Deposits / withdrawals always touch both cash and bank.
+        document.querySelector('.js-mode').classList.toggle('d-none', isTransfer);
+        document.querySelector('.js-bank-name').classList.toggle('d-none', !isTransfer && mode.value !== 'bank');
+    }
+    type.addEventListener('change', sync);
+    mode.addEventListener('change', sync);
+    sync();
+});
+</script>
+{% endblock %}

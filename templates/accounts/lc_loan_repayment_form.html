@@ -1,0 +1,42 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Repay Loan - {{ lc.lc_number }} - SkyTex ERP{% endblock %}
+
+{% block page_title %}Repay Loan - {{ lc.lc_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="stat-card">
+                <div class="alert alert-info py-2 small">
+                    Loan of <strong>{{ loan.loan_amount|floatformat:2 }}</strong> taken {{ loan.loan_date }} against LC
+                    <strong>{{ lc.lc_number }}</strong>. Due {{ loan.total_due|floatformat:2 }} (incl. interest &amp; charges),
+                    repaid {{ loan.repaid_amount|floatformat:2 }} - <strong>{{ loan.outstanding|floatformat:2 }} still owed</strong>.
+                    The payment is taken out of the Cash Book.
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+                    <div class="row">
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.repayment_date %}</div>
+                        <div class="col-md-6">{% include 'accounts/includes/field.html' with field=form.amount %}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.mode %}</div>
+                        <div class="col-md-4 js-bank-only">{% include 'accounts/includes/field.html' with field=form.bank_name %}</div>
+                        <div class="col-md-4">{% include 'accounts/includes/field.html' with field=form.reference %}</div>
+                    </div>
+                    {% include 'accounts/includes/field.html' with field=form.remarks %}
+                    <div class="mt-2 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient"><i class="fas fa-money-bill-wave"></i> Make Payment</button>
+                        <a href="{% url 'accounts:lc_detail' lc.pk %}" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% include 'accounts/includes/bank_toggle.html' with select_id=form.mode.id_for_label %}
+{% endblock %}

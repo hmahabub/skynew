@@ -4,21 +4,26 @@ from .models import (
     TrimReceipt, TrimReceiptDetail,
     ProductionIssue, ProductionIssueDetail, FinishedGoods,
     FinishedGoodsProduction, Dispatch, DispatchDetail,
-    StockMovement,
+    StockMovement, StockTransfer,
     Machine, MachineEvent, SparePart, SparePartConsumption,
     StationeryItem, StationeryConsumption, SupplyAdjustment,
 )
 from datetime import date
 from decimal import Decimal
 
-# Reasons offered by the "-" (Remove Stock) popups for fabric and trims.
-STOCK_OUT_REASONS = [
-    ('issue', 'Issued to Production'),
-    ('damage', 'Damaged'),
-    ('return', 'Returned to Supplier'),
-    ('recount', 'Recount Correction'),
-    ('other', 'Other'),
-]
+class AdminOnlyPriceMixin:
+    """
+    Unit price is admin-only: for anyone who isn't a superuser the field is
+    dropped from the form, so they neither see it nor can change it (an
+    edit keeps whatever price is already saved). Pass user=request.user.
+    """
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not (user and user.is_superuser):
+            self.fields.pop('unit_price', None)
+        elif 'unit_price' in self.fields:
+            self.fields['unit_price'].required = False
+            self.fields['unit_price'].help_text = "Optional - only admins can see this."
 
 def _issued_to_field():
     return forms.CharField(
@@ -26,7 +31,7 @@ def _issued_to_field():
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Cutting - Line 3, or a person'}),
     )
 
-class FabricForm(forms.ModelForm):
+class FabricForm(AdminOnlyPriceMixin, forms.ModelForm):
     lot_number = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Leave blank to auto-generate'}),
@@ -81,7 +86,7 @@ class FabricRollForm(forms.ModelForm):
             'expiry_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
 
-class TrimForm(forms.ModelForm):
+class TrimForm(AdminOnlyPriceMixin, forms.ModelForm):
     class Meta:
         model = Trim
         fields = ['trim_name', 'trim_type', 'supplier', 'unit',
@@ -171,7 +176,7 @@ class ProductionIssueDetailForm(forms.ModelForm):
             'notes': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
-class FinishedGoodsForm(forms.ModelForm):
+class FinishedGoodsForm(AdminOnlyPriceMixin, forms.ModelForm):
     class Meta:
         model = FinishedGoods
         fields = ['style', 'size', 'color', 'unit_price',
@@ -259,9 +264,9 @@ class TrimStockInForm(forms.Form):
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'e.g. supplier / invoice reference'}),
     )
 
-class TrimStockOutForm(forms.Form):
-    """"-" popup on Trim Management: takes stock out, applied immediately."""
-    REASON_CHOICES = STOCK_OUT_REASONS
+class TrimStockTransferForm(forms.Form):
+    """"Transfer Stock" popup on Trim Management - creates a request that needs admin approval."""
+    REASON_CHOICES = StockTransfer.REASON_CHOICES
 
     quantity = forms.IntegerField(
         min_value=1,
@@ -281,9 +286,12 @@ class TrimStockOutForm(forms.Form):
 
     def clean_quantity(self):
         quantity = self.cleaned_data['quantity']
-        if quantity > self.trim.current_stock:
+        pending = StockTransfer.pending_qty(trim=self.trim)
+        available = self.trim.current_stock - pending
+        if quantity > available:
             raise forms.ValidationError(
-                f"Only {self.trim.current_stock} {self.trim.unit} of this trim is in stock."
+                f"Only {available} {self.trim.unit} can be transferred"
+                + (f" ({pending} already awaiting approval)." if pending else ".")
             )
         return quantity
 
@@ -320,14 +328,14 @@ class FabricStockInForm(forms.Form):
             raise forms.ValidationError(f'A lot numbered "{lot_number}" already exists.')
         return lot_number
 
-class FabricStockOutForm(forms.Form):
+class FabricStockTransferForm(forms.Form):
     """
-    "-" popup on Fabric Management: takes stock out of one lot, applied
-    immediately (no approval step). If the fabric has no lots at all (e.g.
-    stock that came in through an old Goods Receipt) the lot can be left
-    blank and only the fabric's total is reduced.
+    "Transfer Stock" popup on Fabric Management: a request to take stock
+    out of one lot, which needs admin approval. If the fabric has no lots
+    at all the lot can be left blank and only the fabric's total is used.
+    Pending requests count against what's available.
     """
-    REASON_CHOICES = STOCK_OUT_REASONS
+    REASON_CHOICES = StockTransfer.REASON_CHOICES
 
     lot = forms.ModelChoiceField(
         queryset=FabricRoll.objects.none(), required=False,
@@ -357,15 +365,23 @@ class FabricStockOutForm(forms.Form):
         if quantity is None:
             return cleaned_data
 
+        unit = self.fabric.unit
         if lot is None and self.fields['lot'].queryset.exists():
-            raise forms.ValidationError("Select which lot to take the stock from.")
-        if lot is not None and quantity > lot.remaining_length:
+            raise forms.ValidationError("Select which lot to transfer the stock from.")
+        if lot is not None:
+            pending = StockTransfer.pending_qty(fabric_roll=lot)
+            available = lot.remaining_length - pending
+            if quantity > available:
+                raise forms.ValidationError(
+                    f"Lot {lot.lot_number} only has {available} {unit} available"
+                    + (f" ({pending} already awaiting approval)." if pending else ".")
+                )
+        pending = StockTransfer.pending_qty(fabric=self.fabric)
+        available = self.fabric.current_stock - pending
+        if quantity > available:
             raise forms.ValidationError(
-                f"Lot {lot.lot_number} only has {lot.remaining_length} {self.fabric.unit} left."
-            )
-        if quantity > self.fabric.current_stock:
-            raise forms.ValidationError(
-                f"Only {self.fabric.current_stock} {self.fabric.unit} of this fabric is in stock."
+                f"Only {available} {unit} of this fabric is available"
+                + (f" ({pending} already awaiting approval)." if pending else ".")
             )
         return cleaned_data
 
@@ -414,7 +430,7 @@ class RejectMachineEventForm(forms.Form):
 
 # --------------------------------------------------------------- spare parts
 
-class SparePartForm(forms.ModelForm):
+class SparePartForm(AdminOnlyPriceMixin, forms.ModelForm):
     class Meta:
         model = SparePart
         fields = ['part_name', 'category', 'compatible_machine_type', 'supplier',
@@ -471,7 +487,7 @@ class SparePartConsumptionForm(forms.Form):
 
 # ---------------------------------------------------------------- stationery
 
-class StationeryItemForm(forms.ModelForm):
+class StationeryItemForm(AdminOnlyPriceMixin, forms.ModelForm):
     class Meta:
         model = StationeryItem
         fields = ['item_name', 'category', 'unit', 'unit_price', 'min_stock', 'max_stock', 'description']

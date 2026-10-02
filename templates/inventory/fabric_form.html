@@ -59,6 +59,8 @@
                 <form method="post" class="compact-form">
                     {% csrf_token %}
 
+                    {% include 'inventory/includes/copy_from.html' %}
+
                     {% if form.errors %}
                         <div class="alert alert-danger">
                             <strong>Please fix the following errors:</strong>
@@ -129,12 +131,15 @@
                                 {{ form.supplier }}
                             </div>
                         </div>
+                        {% if 'unit_price' in form.fields %}
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label class="form-label">Unit Price *</label>
+                                <label class="form-label">Unit Price</label>
                                 {{ form.unit_price }}
+                                <div class="form-text">{{ form.unit_price.help_text }}</div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
 
                     <h6 class="border-bottom">Order Reference (optional)</h6>

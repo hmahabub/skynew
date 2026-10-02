@@ -4,7 +4,7 @@ from .models import (
     Buyer, Supplier, Project, PurchaseOrder, PurchaseOrderItem,
     SalesInvoice, SalesInvoiceItem, Payment,
     CostSheet, BankAccount, BankTransaction,
-    LetterOfCredit, LCPayment, LCLoan, Cost,
+    LetterOfCredit, LCPayment, LCLoan, LCLoanRepayment, Cost, CostVoucher, CashBookEntry,
 )
 
 admin.site.register(Buyer)
@@ -22,3 +22,6 @@ admin.site.register(LetterOfCredit)
 admin.site.register(LCPayment)
 admin.site.register(LCLoan)
 admin.site.register(Cost)
+admin.site.register(LCLoanRepayment)
+admin.site.register(CostVoucher)
+admin.site.register(CashBookEntry)

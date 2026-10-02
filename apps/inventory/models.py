@@ -41,7 +41,7 @@ class Fabric(models.Model):
     purchase_order = models.CharField(max_length=100, blank=True)
     buyer = models.CharField(max_length=200, blank=True)
     unit = models.CharField(max_length=20, choices=UNIT_CHOICES, default='meter')
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     current_stock = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -132,7 +132,7 @@ class Trim(models.Model):
     trim_type = models.CharField(max_length=20, choices=TRIM_TYPES)
     supplier = models.ForeignKey('accounts.Supplier', on_delete=models.SET_NULL, null=True, related_name='trims')
     unit = models.CharField(max_length=20)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     current_stock = models.IntegerField(default=0)
     color = models.CharField(max_length=50, blank=True)
     size = models.CharField(max_length=50, blank=True)
@@ -158,7 +158,7 @@ class GoodsReceipt(models.Model):
     Goods receipt from suppliers.
 
     A GR only ever ADDS to fabric stock - there's no accept/reject/QC split
-    here. Fabric stock goes down through the Remove Stock (-) action on the
+    here. Fabric stock goes down through the Transfer Stock (-) action on the
     Fabric Management page instead.
     """
     supplier = models.ForeignKey('accounts.Supplier', on_delete=models.CASCADE, related_name='receipts')
@@ -318,7 +318,7 @@ class FinishedGoods(models.Model):
     quantity_in_stock = models.IntegerField(default=0)
     quantity_dispatched = models.IntegerField(default=0)
     quantity_defective = models.IntegerField(default=0)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     warehouse_location = models.CharField(max_length=100)
     rack_location = models.CharField(max_length=50, blank=True)
     bin_location = models.CharField(max_length=50, blank=True)
@@ -494,7 +494,7 @@ class StockMovement(models.Model):
         ('issue', 'Production Issue'),
         ('return', 'Return to Store'),
         ('adjustment', 'Stock Removed'),
-        ('transfer', 'Transfer Between Locations'),
+        ('transfer', 'Stock Transfer'),
         ('dispatch', 'Dispatch to Buyer'),
     ]
 
@@ -529,6 +529,72 @@ class StockMovement(models.Model):
 
     class Meta:
         ordering = ['-movement_date', '-created_at']
+
+class StockTransfer(models.Model):
+    """
+    A request to take stock out of a fabric (from one lot) or a trim - the
+    "Transfer Stock" popup. Nothing moves until a superuser approves it
+    (see approve_stock_transfer); then the stock is deducted and logged as
+    a StockMovement. Pending requests still count against what's available,
+    so the same stock can't be requested twice.
+    """
+    REASON_CHOICES = [
+        ('issue', 'Issued to Production'),
+        ('damage', 'Damaged'),
+        ('return', 'Returned to Supplier'),
+        ('recount', 'Recount Correction'),
+        ('other', 'Other'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    fabric = models.ForeignKey(Fabric, on_delete=models.CASCADE, null=True, blank=True, related_name='transfers')
+    fabric_roll = models.ForeignKey(FabricRoll, on_delete=models.SET_NULL, null=True, blank=True, related_name='transfers')
+    trim = models.ForeignKey(Trim, on_delete=models.CASCADE, null=True, blank=True, related_name='transfers')
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES, default='issue')
+    issued_to = models.CharField(max_length=200, blank=True)
+    notes = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='requested_stock_transfers')
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_stock_transfers')
+    approved_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def transfer_number(self):
+        if not self.pk:
+            return "TRF-PENDING"
+        return f"TRF-{self.created_at:%y%m%d}-{self.pk:05d}"
+
+    @property
+    def item_name(self):
+        if self.fabric_id:
+            return f"{self.fabric.fabric_code} - {self.fabric.fabric_name}"
+        return f"{self.trim.trim_code} - {self.trim.trim_name}" if self.trim_id else "-"
+
+    @property
+    def unit(self):
+        if self.fabric_id:
+            return self.fabric.unit
+        return self.trim.unit if self.trim_id else ''
+
+    @classmethod
+    def pending_qty(cls, **filters):
+        """Total quantity of pending transfers matching filters (e.g. fabric_roll=lot)."""
+        return cls.objects.filter(status='pending', **filters).aggregate(
+            total=models.Sum('quantity')
+        )['total'] or Decimal('0')
+
+    def __str__(self):
+        return f"{self.transfer_number} - {self.item_name} ({self.quantity})"
+
+    class Meta:
+        ordering = ['-created_at']
 
 class Machine(models.Model):
     """Garment-factory machinery asset register."""
@@ -660,7 +726,7 @@ class SparePart(models.Model):
     compatible_machine_type = models.CharField(max_length=30, choices=Machine.MACHINE_TYPES, blank=True)
     supplier = models.ForeignKey('accounts.Supplier', on_delete=models.SET_NULL, null=True, blank=True, related_name='spare_parts')
     unit = models.CharField(max_length=20, default='pcs')
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     current_stock = models.IntegerField(default=0)
     min_stock = models.IntegerField(default=0)
     max_stock = models.IntegerField(default=99999)
@@ -734,7 +800,7 @@ class StationeryItem(models.Model):
     item_name = models.CharField(max_length=200)
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='other')
     unit = models.CharField(max_length=20, default='pcs')
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     current_stock = models.IntegerField(default=0)
     min_stock = models.IntegerField(default=0)
     max_stock = models.IntegerField(default=99999)

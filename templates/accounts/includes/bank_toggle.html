@@ -1,0 +1,14 @@
+{% comment %}Shows the .js-bank-only fields only when the cash/bank select (select_id) is set to "bank".{% endcomment %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var select = document.getElementById('{{ select_id }}');
+    if (!select) return;
+    function sync() {
+        document.querySelectorAll('.js-bank-only').forEach(function (el) {
+            el.classList.toggle('d-none', select.value !== 'bank');
+        });
+    }
+    select.addEventListener('change', sync);
+    sync();
+});
+</script>

@@ -1,0 +1,13 @@
+<div class="btn-group btn-group-sm">
+    <form method="post" action="{% url 'inventory:approve_stock_transfer' transfer.pk %}" class="d-inline"
+          onsubmit="return confirm('Approve {{ transfer.transfer_number }}? {{ transfer.quantity|floatformat:'-2' }} {{ transfer.unit }} will be taken out of stock.');">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn btn-outline-success" title="Approve"><i class="fas fa-check"></i></button>
+    </form>
+    <form method="post" action="{% url 'inventory:reject_stock_transfer' transfer.pk %}" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="btn btn-outline-danger" title="Reject"><i class="fas fa-times"></i></button>
+    </form>
+</div>

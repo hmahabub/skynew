@@ -156,6 +156,48 @@
             margin-right: 10px;
         }
         
+        /* Tabs sit straight on the purple page background - make the
+           inactive ones visible (white text on a light tint). Tabs inside
+           a white card keep Bootstrap's normal look. */
+        .content-wrapper .nav-tabs {
+            border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+        }
+        .content-wrapper .nav-tabs .nav-link {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-bottom: none;
+            margin-right: 0.25rem;
+        }
+        .content-wrapper .nav-tabs .nav-link:hover {
+            background: rgba(255, 255, 255, 0.32);
+            color: #fff;
+        }
+        .content-wrapper .nav-tabs .nav-link.active {
+            color: #4c3a9b;
+            background: #fff;
+            border-color: #fff;
+            font-weight: 600;
+        }
+        /* Page titles, their buttons and filter labels also sit on the purple. */
+        .content-wrapper .page-header h5 { color: #fff; }
+        .content-wrapper .page-header .text-muted { color: rgba(255, 255, 255, 0.8) !important; }
+        .content-wrapper .page-header .btn-outline-primary,
+        .content-wrapper .page-header .btn-outline-secondary {
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+        .content-wrapper .page-header .btn-outline-primary:hover,
+        .content-wrapper .page-header .btn-outline-secondary:hover {
+            color: #4c3a9b;
+            background: #fff;
+            border-color: #fff;
+        }
+        .content-wrapper .filter-section .form-label { color: #fff; }
+        .content-wrapper .stat-card .nav-tabs { border-bottom: 1px solid #dee2e6; }
+        .content-wrapper .stat-card .nav-tabs .nav-link { color: #495057; background: #f1f3f5; border-color: #dee2e6; }
+        .content-wrapper .stat-card .nav-tabs .nav-link.active { color: #4c3a9b; background: #fff; }
+
         .content-wrapper {
             margin-left: 220px;
             padding: 20px;
@@ -343,7 +385,7 @@
             <!-- Accounting hidden from nav for now - Warehouse/Inventory is
                  the primary module in use; the views/URLs still work if
                  linked to directly. -->
-            <!-- {% if user.is_superuser %}
+            {% if user.is_superuser %}
             <div class="menu-item">
                 <a data-bs-toggle="collapse" href="#accountsMenu" role="button"
                    aria-expanded="{% if active == 'accounts' %}true{% else %}false{% endif %}"
@@ -373,9 +415,10 @@
 
                         <a class="d-block py-2 text-white text-decoration-none"
                            href="{% url 'accounts:projects_list' %}">
-                            <i class="fas fa-tshirt me-2"></i> Projects
+                            <i class="fas fa-tshirt me-2"></i> Orders
                         </a>
 
+                        {% if MERCHANDISING_ENABLED %}
                         <a class="d-block py-2 text-white text-decoration-none"
                            href="{% url 'accounts:purchase_orders_list' %}">
                             <i class="fas fa-file-invoice me-2"></i> Purchase Orders
@@ -385,6 +428,7 @@
                            href="{% url 'accounts:invoices_list' %}">
                             <i class="fas fa-file-invoice-dollar me-2"></i> Invoices
                         </a>
+                        {% endif %}
 
 
                         <a class="d-block py-2 text-white text-decoration-none"
@@ -404,19 +448,18 @@
                         </a>
 
                         <a class="d-block py-2 text-white text-decoration-none"
+                           href="{% url 'accounts:voucher_list' %}">
+                            <i class="fas fa-file-signature me-2"></i> Expense Vouchers
+                        </a>
+
+                        <a class="d-block py-2 text-white text-decoration-none"
+                           href="{% url 'accounts:cashbook' %}">
+                            <i class="fas fa-book-open me-2"></i> Cash Book
+                        </a>
+
+                        <a class="d-block py-2 text-white text-decoration-none"
                            href="{% url 'accounts:cost_sheets' %}">
                             <i class="fas fa-calculator me-2"></i> Cost Sheets
-                        </a>
-
-
-                        <a class="d-block py-2 text-white text-decoration-none"
-                           href="{% url 'accounts:banks_list' %}">
-                            <i class="fas fa-university me-2"></i> Banks
-                        </a>
-
-                        <a class="d-block py-2 text-white text-decoration-none"
-                           href="{% url 'accounts:bank_transactions_list' %}">
-                            <i class="fas fa-exchange-alt me-2"></i> Bank Transactions
                         </a>
 
 
@@ -428,7 +471,17 @@
                     </div>
                 </div>
             </div>
-            {% endif %} -->
+            {% endif %}
+
+            {% if user.is_authenticated and not user.is_superuser %}
+            <!-- Anyone can raise an expense voucher; admins find it under Accounting. -->
+            <div class="menu-item {% if active == 'vouchers' %}active{% endif %}">
+                <a href="{% url 'accounts:voucher_list' %}">
+                    <i class="fas fa-file-signature"></i>
+                    <span>Expense Vouchers</span>
+                </a>
+            </div>
+            {% endif %}
 
         <div class="menu-item">
             <a data-bs-toggle="collapse" href="#inventoryMenu" role="button"

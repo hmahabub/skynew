@@ -11,7 +11,7 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-1">{{ trim.trim_code }} - {{ trim.trim_name }}</h5>
-                <p class="text-muted small mb-0">Every stock addition recorded against this trim</p>
+                <p class="text-muted small mb-0">Every bit of stock added to or transferred out of this trim</p>
             </div>
             <div>
                 <a href="{% url 'inventory:trim_list' %}" class="btn btn-secondary">
@@ -53,66 +53,22 @@
     <div class="d-flex gap-2 mb-3">
         <button type="button" class="btn btn-success btn-sm"
                 data-trim-stock="add" data-trim-id="{{ trim.pk }}" data-trim-name="{{ trim.trim_code }} - {{ trim.trim_name }}"
-                                        data-trim-unit="{{ trim.unit }}" data-trim-stock-qty="{{ trim.current_stock }}">
+                data-trim-unit="{{ trim.unit }}" data-trim-stock-qty="{{ trim.current_stock }}"
+                data-trim-pending-qty="{{ pending_transfer_qty }}">
             <i class="fas fa-plus"></i> Add Stock
         </button>
         <button type="button" class="btn btn-outline-danger btn-sm"
-                data-trim-stock="remove" data-trim-id="{{ trim.pk }}" data-trim-name="{{ trim.trim_code }} - {{ trim.trim_name }}"
-                                        data-trim-unit="{{ trim.unit }}" data-trim-stock-qty="{{ trim.current_stock }}"
+                data-trim-stock="transfer" data-trim-id="{{ trim.pk }}" data-trim-name="{{ trim.trim_code }} - {{ trim.trim_name }}"
+                data-trim-unit="{{ trim.unit }}" data-trim-stock-qty="{{ trim.current_stock }}"
+                data-trim-pending-qty="{{ pending_transfer_qty }}"
                 {% if trim.current_stock <= 0 %}disabled{% endif %}>
-            <i class="fas fa-minus"></i> Remove Stock
+            <i class="fas fa-minus"></i> Transfer Stock
         </button>
     </div>
 
-    <div class="stat-card">
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Type</th>
-                        <th>Reference #</th>
-                        <th>Quantity</th>
-                        <th>Balance After</th>
-                        <th>Issued To</th>
-                        <th>Notes</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for movement in movements %}
-                    <tr>
-                        <td>{{ movement.movement_date }}</td>
-                        <td>
-                            {% if movement.movement_type == 'receipt' %}
-                                <span class="badge bg-success">Stock In</span>
-                            {% elif movement.movement_type == 'issue' %}
-                                <span class="badge bg-info">Issued</span>
-                            {% elif movement.movement_type == 'adjustment' %}
-                                <span class="badge bg-warning">Removed</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ movement.get_movement_type_display }}</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ movement.reference_number }}</td>
-                        <td class="{% if movement.quantity >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {% if movement.quantity >= 0 %}+{% endif %}{{ movement.quantity|floatformat:0 }}
-                        </td>
-                        <td><strong>{{ movement.balance_after|floatformat:0 }}</strong></td>
-                        <td>{{ movement.issued_to|default:"-" }}</td>
-                        <td class="text-muted small">{{ movement.notes|truncatechars:60 }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-center py-4">
-                            <i class="fas fa-history fa-3x text-muted mb-3 d-block"></i>
-                            <p class="text-muted">No stock activity recorded yet for this trim</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    {% include 'inventory/includes/transfer_requests.html' %}
+
+    {% include 'inventory/includes/ledger_tables.html' with unit=trim.unit %}
 </div>
 {% include 'inventory/includes/trim_stock_modals.html' %}
 {% endblock %}

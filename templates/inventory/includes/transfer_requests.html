@@ -1,0 +1,54 @@
+{% comment %}
+Stock transfers that are awaiting approval (or were rejected) for one item.
+Needs in context: transfer_requests. Optional: show_lot (fabric).
+Admins get Approve / Reject buttons right here.
+{% endcomment %}
+{% if transfer_requests %}
+<div class="stat-card mb-3">
+    <h6 class="border-bottom pb-2"><i class="fas fa-user-shield text-warning"></i> Transfer Requests</h6>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Transfer #</th>
+                    <th>Requested</th>
+                    {% if show_lot %}<th>Lot</th>{% endif %}
+                    <th>Quantity</th>
+                    <th>Reason</th>
+                    <th>Issued To</th>
+                    <th>Requested By</th>
+                    <th>Status</th>
+                    {% if user.is_superuser %}<th>Actions</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for transfer in transfer_requests %}
+                <tr>
+                    <td>{{ transfer.transfer_number }}</td>
+                    <td>{{ transfer.created_at|date:"Y-m-d" }}</td>
+                    {% if show_lot %}<td>{{ transfer.fabric_roll.lot_number|default:"-" }}</td>{% endif %}
+                    <td>{{ transfer.quantity|floatformat:"-2" }}</td>
+                    <td>{{ transfer.get_reason_display }}</td>
+                    <td>{{ transfer.issued_to|default:"-" }}</td>
+                    <td>{{ transfer.requested_by.username|default:"-" }}</td>
+                    <td>
+                        {% if transfer.status == 'pending' %}
+                            <span class="badge bg-warning text-dark">Awaiting Approval</span>
+                        {% else %}
+                            <span class="badge bg-danger" title="Rejected by {{ transfer.approved_by.username|default:'-' }} on {{ transfer.approved_date }}">Rejected</span>
+                        {% endif %}
+                    </td>
+                    {% if user.is_superuser %}
+                    <td>
+                        {% if transfer.status == 'pending' %}
+                        {% include 'inventory/includes/transfer_approve_buttons.html' %}
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}

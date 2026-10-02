@@ -59,6 +59,7 @@
                         <th>Style</th>
                         <th>Size</th>
                         <th>Color</th>
+                        {% if user.is_superuser %}<th title="Only admins can see this">Unit Price</th>{% endif %}
                         <th>In Stock</th>
                         <th title="On dispatches that are Pending or On-going">Pending Dispatch</th>
                         <th title="In Stock minus Pending Dispatch">Available</th>
@@ -73,6 +74,7 @@
                         <td><strong>{{ item.style }}</strong></td>
                         <td>{{ item.size }}</td>
                         <td>{{ item.color }}</td>
+                        {% if user.is_superuser %}<td>{{ item.unit_price|default_if_none:"-" }}</td>{% endif %}
                         <td>{{ item.quantity_in_stock }}</td>
                         <td>
                             {% if item.pending_dispatch_qty %}
@@ -107,12 +109,15 @@
                                 <a href="{% url 'inventory:edit_finished_goods' item.pk %}" class="btn btn-outline-warning" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <a href="{% url 'inventory:add_finished_goods' %}?copy_from={{ item.pk }}" class="btn btn-outline-secondary" title="Copy into a new item">
+                                    <i class="fas fa-copy"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center py-4">
+                        <td colspan="{% if user.is_superuser %}10{% else %}9{% endif %}" class="text-center py-4">
                             <i class="fas fa-boxes fa-3x text-muted mb-3 d-block"></i>
                             <p class="text-muted">No finished goods found</p>
                             <a href="{% url 'inventory:add_finished_goods' %}" class="btn btn-gradient btn-sm">

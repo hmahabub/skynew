@@ -28,7 +28,7 @@
                         <i class="fas fa-info-circle"></i>
                         A Goods Receipt only ever <strong>adds</strong> to fabric stock. The receipt
                         number is generated automatically (format: <code>GR-YYMMDD-00001</code>).
-                        Need to reduce stock instead? Use the <strong>&minus;</strong> button on
+                        Need to take stock out instead? Use the <strong>Transfer Stock (&minus;)</strong> button on
                         <a href="{% url 'inventory:fabric_list' %}">Fabric Management</a>.
                     </div>
 
@@ -64,8 +64,10 @@
                                 <tr>
                                     <th>Fabric</th>
                                     <th style="width: 160px;">Quantity</th>
+                                    {% if user.is_superuser %}
                                     <th style="width: 160px;">Unit Price</th>
                                     <th style="width: 140px;">Line Total</th>
+                                    {% endif %}
                                     <th style="width: 50px;">
                                         <button type="button" class="btn btn-sm btn-success" onclick="addRow()" title="Add another fabric">
                                             <i class="fas fa-plus"></i>
@@ -86,10 +88,14 @@
                                     <td>
                                         <input type="number" name="quantities[]" class="form-control item-qty" step="0.01" min="0.01" placeholder="0.00">
                                     </td>
+                                    {% if user.is_superuser %}
                                     <td>
                                         <input type="number" name="unit_prices[]" class="form-control item-price" step="0.01" min="0" placeholder="0.00">
                                     </td>
                                     <td class="item-total text-end fw-semibold">0.00</td>
+                                    {% else %}
+                                    <input type="hidden" name="unit_prices[]" value="">
+                                    {% endif %}
                                     <td>
                                         <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)" title="Remove">
                                             <i class="fas fa-trash"></i>
@@ -101,8 +107,10 @@
                                 <tr class="table-light">
                                     <td class="text-end fw-semibold">Totals:</td>
                                     <td class="fw-semibold text-success" id="totalQty">0.00</td>
+                                    {% if user.is_superuser %}
                                     <td></td>
                                     <td class="fw-semibold" id="grandTotal">0.00</td>
+                                    {% endif %}
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -140,16 +148,19 @@
 
         document.querySelectorAll('#itemsBody tr').forEach(row => {
             const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
-            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const priceInput = row.querySelector('.item-price');
+            const price = priceInput ? (parseFloat(priceInput.value) || 0) : 0;
             const lineTotal = qty * price;
 
-            row.querySelector('.item-total').textContent = lineTotal.toFixed(2);
+            const lineTotalCell = row.querySelector('.item-total');
+            if (lineTotalCell) lineTotalCell.textContent = lineTotal.toFixed(2);
             totalQty += qty;
             grandTotal += lineTotal;
         });
 
         document.getElementById('totalQty').textContent = totalQty.toFixed(2);
-        document.getElementById('grandTotal').textContent = grandTotal.toFixed(2);
+        const grandTotalCell = document.getElementById('grandTotal');
+        if (grandTotalCell) grandTotalCell.textContent = grandTotal.toFixed(2);
     }
 
     function addRow() {
@@ -159,7 +170,8 @@
 
         newRow.querySelectorAll('input').forEach(input => input.value = '');
         newRow.querySelector('select').selectedIndex = 0;
-        newRow.querySelector('.item-total').textContent = '0.00';
+        const newTotalCell = newRow.querySelector('.item-total');
+        if (newTotalCell) newTotalCell.textContent = '0.00';
 
         tbody.appendChild(newRow);
         wireRowTotals(newRow);

@@ -1,12 +1,12 @@
 from datetime import date
 from decimal import Decimal
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
 
 from apps.accounts.models import Buyer, Project
-from .models import Dispatch, DispatchDetail, Fabric, FabricRoll, FinishedGoods, StockMovement, Trim
+from .models import Dispatch, DispatchDetail, Fabric, FabricRoll, FinishedGoods, StockMovement, StockTransfer, Trim
 
 
 class InventoryTestCase(TestCase):
@@ -38,11 +38,21 @@ class InventoryTestCase(TestCase):
         data.update(extra)
         return self.client.post(reverse('inventory:add_fabric_stock', args=[self.fabric.pk]), data)
 
-    def remove_stock(self, quantity, lot=None, reason='issue', issued_to=''):
+    def transfer_stock(self, quantity, lot=None, reason='issue', issued_to=''):
         data = {'quantity': quantity, 'reason': reason, 'issued_to': issued_to, 'next': reverse('inventory:fabric_list')}
         if lot is not None:
             data['lot'] = lot.pk
-        return self.client.post(reverse('inventory:remove_fabric_stock', args=[self.fabric.pk]), data)
+        return self.client.post(reverse('inventory:transfer_fabric_stock', args=[self.fabric.pk]), data)
+
+    def approve(self, transfer):
+        return self.client.post(reverse('inventory:approve_stock_transfer', args=[transfer.pk]))
+
+    def login_staff(self):
+        """A non-admin Inventory user."""
+        staff = User.objects.create_user('staff', password='pw')
+        staff.groups.add(Group.objects.get_or_create(name='Inventory')[0])
+        self.client.force_login(staff)
+        return staff
 
     def create_dispatch(self, quantity, number='DSP-1'):
         return self.client.post(reverse('inventory:add_dispatch'), {
@@ -68,52 +78,100 @@ class FabricStockPopupTests(InventoryTestCase):
         self.fabric.refresh_from_db()
         self.assertEqual(self.fabric.current_stock, Decimal('10'))
 
-    def test_remove_stock_takes_from_lot_immediately(self):
+    def test_transfer_waits_for_approval_then_takes_from_lot(self):
         self.add_stock('50')
         lot = self.fabric.rolls.get()
-        response = self.remove_stock('20', lot=lot, reason='damage')
+        response = self.transfer_stock('20', lot=lot, reason='damage', issued_to='Cutting - Line 3')
         self.assertRedirects(response, reverse('inventory:fabric_list'))
+        transfer = StockTransfer.objects.get()
+        self.assertEqual(transfer.status, 'pending')
+        self.fabric.refresh_from_db()
+        self.assertEqual(self.fabric.current_stock, Decimal('50'))  # nothing moved yet
+
+        self.approve(transfer)
+        transfer.refresh_from_db()
         self.fabric.refresh_from_db()
         lot.refresh_from_db()
+        self.assertEqual(transfer.status, 'approved')
         self.assertEqual(self.fabric.current_stock, Decimal('30'))
         self.assertEqual(lot.remaining_length, Decimal('30'))
         movement = StockMovement.objects.filter(fabric=self.fabric).latest('created_at')
+        self.assertEqual(movement.movement_type, 'transfer')
         self.assertEqual(movement.quantity, Decimal('-20'))
         self.assertEqual(movement.fabric_roll, lot)
+        self.assertEqual(movement.issued_to, 'Cutting - Line 3')
+        self.assertEqual(movement.reference_number, transfer.transfer_number)
         self.assertIn('Damaged', movement.notes)
 
-    def test_remove_stock_records_issued_to(self):
+    def test_reject_leaves_stock_alone(self):
+        self.add_stock('50')
+        self.transfer_stock('20', lot=self.fabric.rolls.get())
+        transfer = StockTransfer.objects.get()
+        self.client.post(reverse('inventory:reject_stock_transfer', args=[transfer.pk]))
+        transfer.refresh_from_db()
+        self.fabric.refresh_from_db()
+        self.assertEqual(transfer.status, 'rejected')
+        self.assertEqual(self.fabric.current_stock, Decimal('50'))
+        self.approve(transfer)  # can't approve a rejected request
+        self.fabric.refresh_from_db()
+        self.assertEqual(self.fabric.current_stock, Decimal('50'))
+
+    def test_pending_transfers_count_against_available(self):
         self.add_stock('50')
         lot = self.fabric.rolls.get()
-        self.remove_stock('10', lot=lot, issued_to='Cutting - Line 3')
-        movement = StockMovement.objects.filter(fabric=self.fabric).latest('created_at')
-        self.assertEqual(movement.issued_to, 'Cutting - Line 3')
+        self.transfer_stock('30', lot=lot)
+        self.transfer_stock('30', lot=lot)  # only 20 left available
+        self.assertEqual(StockTransfer.objects.count(), 1)
+
+    def test_only_admin_can_approve(self):
+        self.add_stock('50')
+        self.transfer_stock('10', lot=self.fabric.rolls.get())
+        transfer = StockTransfer.objects.get()
+        self.login_staff()
+        self.approve(transfer)
+        transfer.refresh_from_db()
+        self.assertEqual(transfer.status, 'pending')
+
+    def test_ledger_has_separate_stock_in_and_out_tables(self):
+        self.add_stock('50')
+        self.transfer_stock('10', lot=self.fabric.rolls.get(), issued_to='Cutting - Line 3')
+        self.approve(StockTransfer.objects.get())
         response = self.client.get(reverse('inventory:fabric_stock_ledger', args=[self.fabric.pk]))
+        self.assertEqual(len(response.context['stock_in']), 1)
+        self.assertEqual(len(response.context['stock_out']), 1)
+        self.assertContains(response, 'Stock In')
+        self.assertContains(response, 'Stock Out')
         self.assertContains(response, 'Cutting - Line 3')
 
-    def test_remove_more_than_lot_has_is_refused(self):
+    def test_ledger_lists_pending_transfer_requests(self):
         self.add_stock('50')
-        lot = self.fabric.rolls.get()
-        self.remove_stock('60', lot=lot)
-        self.fabric.refresh_from_db()
-        self.assertEqual(self.fabric.current_stock, Decimal('50'))
+        self.transfer_stock('10', lot=self.fabric.rolls.get())
+        response = self.client.get(reverse('inventory:fabric_stock_ledger', args=[self.fabric.pk]))
+        self.assertContains(response, 'Awaiting Approval')
+        self.assertContains(response, StockTransfer.objects.get().transfer_number)
 
-    def test_remove_requires_lot_when_fabric_has_lots(self):
+    def test_transfer_more_than_lot_has_is_refused(self):
         self.add_stock('50')
-        self.remove_stock('10')
-        self.fabric.refresh_from_db()
-        self.assertEqual(self.fabric.current_stock, Decimal('50'))
+        self.transfer_stock('60', lot=self.fabric.rolls.get())
+        self.assertFalse(StockTransfer.objects.exists())
 
-    def test_remove_without_lots_reduces_total(self):
+    def test_transfer_requires_lot_when_fabric_has_lots(self):
+        self.add_stock('50')
+        self.transfer_stock('10')
+        self.assertFalse(StockTransfer.objects.exists())
+
+    def test_transfer_without_lots_reduces_total(self):
         Fabric.objects.filter(pk=self.fabric.pk).update(current_stock=Decimal('40'))
-        self.remove_stock('15')
+        self.transfer_stock('15')
+        self.approve(StockTransfer.objects.get())
         self.fabric.refresh_from_db()
         self.assertEqual(self.fabric.current_stock, Decimal('25'))
 
     def test_using_up_a_lot_marks_it_finished(self):
         self.add_stock('10')
         lot = self.fabric.rolls.get()
-        self.remove_stock('10', lot=lot)
+        self.transfer_stock('10', lot=lot)
+        self.approve(StockTransfer.objects.get())
         lot.refresh_from_db()
         self.assertEqual(lot.status, 'finished')
 
@@ -130,7 +188,8 @@ class FabricStockPopupTests(InventoryTestCase):
         response = self.client.get(reverse('inventory:fabric_list'))
         self.assertContains(response, 'ABC Textiles')
         self.assertContains(response, 'addFabricStockModal')
-        self.assertContains(response, 'data-fabric-stock="remove"')
+        self.assertContains(response, 'data-fabric-stock="transfer"')
+        self.assertContains(response, 'Transfer Stock')
 
     def test_goods_receipt_creates_a_lot_per_line(self):
         from apps.accounts.models import Supplier
@@ -164,39 +223,126 @@ class TrimStockPopupTests(InventoryTestCase):
         super().setUp()
         self.trim = Trim.objects.create(trim_name='Button', trim_type='button', unit='pcs', unit_price=Decimal('1'))
 
-    def test_add_and_remove_trim_stock(self):
+    def transfer(self, quantity, **extra):
+        data = {'quantity': quantity, 'reason': 'issue', 'next': reverse('inventory:trim_list')}
+        data.update(extra)
+        return self.client.post(reverse('inventory:transfer_trim_stock', args=[self.trim.pk]), data)
+
+    def test_add_and_transfer_trim_stock(self):
         list_url = reverse('inventory:trim_list')
         response = self.client.post(reverse('inventory:add_trim_stock', args=[self.trim.pk]),
                                     {'quantity': 100, 'next': list_url})
         self.assertRedirects(response, list_url)
-        response = self.client.post(reverse('inventory:remove_trim_stock', args=[self.trim.pk]),
-                                    {'quantity': 30, 'reason': 'issue', 'issued_to': 'Sewing - Line 2', 'next': list_url})
+        response = self.transfer(30, issued_to='Sewing - Line 2')
         self.assertRedirects(response, list_url)
+        self.trim.refresh_from_db()
+        self.assertEqual(self.trim.current_stock, 100)
+
+        self.approve(StockTransfer.objects.get())
         self.trim.refresh_from_db()
         self.assertEqual(self.trim.current_stock, 70)
         movement = StockMovement.objects.filter(trim=self.trim).latest('created_at')
         self.assertEqual(movement.quantity, Decimal('-30'))
-        self.assertEqual(movement.movement_type, 'issue')
+        self.assertEqual(movement.movement_type, 'transfer')
         self.assertEqual(movement.issued_to, 'Sewing - Line 2')
 
-    def test_cannot_remove_more_than_in_stock(self):
+    def test_cannot_transfer_more_than_available(self):
         Trim.objects.filter(pk=self.trim.pk).update(current_stock=10)
-        self.client.post(reverse('inventory:remove_trim_stock', args=[self.trim.pk]), {'quantity': 11, 'reason': 'damage'})
+        self.transfer(11)
+        self.transfer(6)
+        self.transfer(6)  # only 4 left once the first 6 is pending
+        self.assertEqual(StockTransfer.objects.count(), 1)
+
+    def test_approval_rechecks_stock(self):
+        Trim.objects.filter(pk=self.trim.pk).update(current_stock=10)
+        self.transfer(8)
+        Trim.objects.filter(pk=self.trim.pk).update(current_stock=5)
+        self.approve(StockTransfer.objects.get())
+        self.assertEqual(StockTransfer.objects.get().status, 'pending')
         self.trim.refresh_from_db()
-        self.assertEqual(self.trim.current_stock, 10)
+        self.assertEqual(self.trim.current_stock, 5)
 
     def test_trim_popups_on_list_and_ledger(self):
         for url in [reverse('inventory:trim_list'), reverse('inventory:trim_stock_ledger', args=[self.trim.pk])]:
             response = self.client.get(url)
-            self.assertContains(response, 'removeTrimStockModal')
+            self.assertContains(response, 'transferTrimStockModal')
             self.assertContains(response, 'name="issued_to"')
+            self.assertContains(response, 'Needs admin approval')
 
-    def test_ledger_shows_issued_to(self):
+    def test_pending_approvals_page_lists_transfers(self):
         Trim.objects.filter(pk=self.trim.pk).update(current_stock=10)
-        self.client.post(reverse('inventory:remove_trim_stock', args=[self.trim.pk]),
-                         {'quantity': 5, 'reason': 'issue', 'issued_to': 'Finishing Dept'})
-        response = self.client.get(reverse('inventory:trim_stock_ledger', args=[self.trim.pk]))
+        self.transfer(5, issued_to='Finishing Dept')
+        response = self.client.get(reverse('inventory:pending_approvals'))
+        self.assertContains(response, StockTransfer.objects.get().transfer_number)
         self.assertContains(response, 'Finishing Dept')
+
+
+class UnitPriceTests(InventoryTestCase):
+    def test_admin_sees_and_sets_price(self):
+        response = self.client.get(reverse('inventory:add_trim'))
+        self.assertIn('unit_price', response.context['form'].fields)
+        self.assertContains(self.client.get(reverse('inventory:fabric_list')), 'Unit Price')
+
+    def test_price_is_optional(self):
+        self.client.post(reverse('inventory:add_fabric'), {
+            'fabric_name': 'Twill', 'fabric_type': 'cotton', 'color': 'Red', 'gsm': 200, 'width': '58',
+            'unit': 'meter', 'unit_price': '',
+        })
+        self.assertIsNone(Fabric.objects.get(fabric_name='Twill').unit_price)
+        self.client.post(reverse('inventory:add_finished_goods'), {
+            'style': 'ST-2', 'size': 'M', 'color': 'Red', 'unit_price': '', 'warehouse_location': 'WH',
+        })
+        self.assertIsNone(FinishedGoods.objects.get(style='ST-2').unit_price)
+
+    def test_non_admin_cannot_see_or_change_price(self):
+        self.login_staff()
+        for url in [reverse('inventory:add_fabric'), reverse('inventory:add_trim'), reverse('inventory:add_finished_goods'),
+                    reverse('inventory:edit_fabric', args=[self.fabric.pk])]:
+            response = self.client.get(url)
+            self.assertNotIn('unit_price', response.context['form'].fields, url)
+            self.assertNotContains(response, 'name="unit_price"')
+        for url in [reverse('inventory:fabric_list'), reverse('inventory:finished_goods_list')]:
+            self.assertNotContains(self.client.get(url), 'Unit Price')
+
+        # Posting a price anyway is ignored, and editing keeps the saved price.
+        self.client.post(reverse('inventory:edit_fabric', args=[self.fabric.pk]), {
+            'fabric_name': 'Cotton Poplin', 'fabric_type': 'cotton', 'color': 'Navy', 'gsm': 150, 'width': '58',
+            'unit': 'meter', 'unit_price': '1',
+        })
+        self.fabric.refresh_from_db()
+        self.assertEqual(self.fabric.unit_price, Decimal('200'))
+
+
+class CopyAndOrderingTests(InventoryTestCase):
+    def test_copy_fabric_prefills_form_but_not_stock(self):
+        response = self.client.get(reverse('inventory:add_fabric'), {'copy_from': self.fabric.pk})
+        form = response.context['form']
+        self.assertEqual(form.initial['fabric_name'], 'Cotton Poplin')
+        self.assertEqual(form.initial['supplier'], 'ABC Textiles')
+        self.assertNotIn('current_stock', form.initial)
+        self.assertContains(response, 'Copied from')
+        self.assertContains(response, 'copyFromSelect')
+
+    def test_copy_trim_and_finished_goods(self):
+        trim = Trim.objects.create(trim_name='Button', trim_type='button', unit='pcs', color='Red')
+        response = self.client.get(reverse('inventory:add_trim'), {'copy_from': trim.pk})
+        self.assertEqual(response.context['form'].initial['color'], 'Red')
+        response = self.client.get(reverse('inventory:add_finished_goods'), {'copy_from': self.fg.pk})
+        self.assertEqual(response.context['form'].initial['style'], 'ST-1001')
+
+    def test_non_admin_copy_does_not_leak_price(self):
+        self.login_staff()
+        response = self.client.get(reverse('inventory:add_fabric'), {'copy_from': self.fabric.pk})
+        self.assertNotContains(response, '200.00')
+
+    def test_lists_show_latest_first(self):
+        newer_fabric = Fabric.objects.create(fabric_name='Newer', color='Red', gsm=1, width=1)
+        newer_trim_old = Trim.objects.create(trim_name='Old Trim', trim_type='tag', unit='pcs')
+        newer_trim = Trim.objects.create(trim_name='New Trim', trim_type='tag', unit='pcs')
+        newer_fg = FinishedGoods.objects.create(style='ST-9', size='S', color='Red', warehouse_location='WH')
+        self.assertEqual(self.client.get(reverse('inventory:fabric_list')).context['fabrics'][0], newer_fabric)
+        self.assertEqual(list(self.client.get(reverse('inventory:trim_list')).context['trims'])[:2], [newer_trim, newer_trim_old])
+        self.assertEqual(self.client.get(reverse('inventory:finished_goods_list')).context['finished_goods'][0], newer_fg)
 
 
 class DispatchTests(InventoryTestCase):
@@ -254,9 +400,7 @@ class DispatchTests(InventoryTestCase):
         self.create_dispatch(10)
         dispatch = Dispatch.objects.get()
         self.client.post(reverse('inventory:update_dispatch_status', args=[dispatch.pk]), {'status': 'dispatched'})
-        staff = User.objects.create_user('staff', password='pw')
-        staff.groups.create(name='Inventory')
-        self.client.force_login(staff)
+        self.login_staff()
         self.client.post(reverse('inventory:approve_dispatch', args=[dispatch.pk]))
         dispatch.refresh_from_db()
         self.assertEqual(dispatch.dispatch_approval, 'pending')
@@ -356,3 +500,46 @@ class PageSmokeTests(InventoryTestCase):
             with self.subTest(page=name):
                 response = self.client.get(reverse(name, args=args))
                 self.assertEqual(response.status_code, 200)
+
+
+class WarehouseUserTests(InventoryTestCase):
+    """A user in the Inventory group can use the warehouse and nothing else."""
+
+    def test_can_use_warehouse_pages(self):
+        self.login_staff()
+        for name, args in [('inventory:inventory_dashboard', []), ('inventory:fabric_list', []),
+                           ('inventory:add_fabric', []), ('inventory:trim_list', []),
+                           ('inventory:finished_goods_list', []), ('inventory:dispatches', []),
+                           ('inventory:add_dispatch', []), ('inventory:stock_report', [])]:
+            with self.subTest(page=name):
+                self.assertEqual(self.client.get(reverse(name, args=args)).status_code, 200)
+
+    def test_blocked_from_hr_accounts_admin_and_approvals(self):
+        self.login_staff()
+        for url in [reverse('hr:hr_dashboard'), reverse('hr:employee_list'), reverse('hr:payroll_list'),
+                    reverse('accounts:accounts_dashboard'), reverse('accounts:buyers_list'),
+                    reverse('inventory:pending_approvals'), '/admin/']:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, 302)
+                self.assertIn('login', response['Location'])
+
+    def test_sidebar_hides_admin_only_links(self):
+        self.login_staff()
+        response = self.client.get(reverse('inventory:fabric_list'))
+        self.assertNotContains(response, reverse('inventory:pending_approvals'))
+        self.assertNotContains(response, f'href="{reverse("accounts:accounts_dashboard")}"')
+        self.assertNotContains(response, reverse('accounts:cashbook'))
+        # ...but they can raise expense vouchers.
+        self.assertContains(response, reverse('accounts:voucher_list'))
+
+    def test_create_warehouse_user_command(self):
+        from unittest import mock
+        from django.core.management import call_command
+        with mock.patch('getpass.getpass', return_value='Wh-Strong-Pass-2026'):
+            call_command('create_warehouse_user', 'store1', stdout=mock.MagicMock())
+        user = User.objects.get(username='store1')
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        self.assertEqual(list(user.groups.values_list('name', flat=True)), ['Inventory'])
+        self.assertTrue(user.check_password('Wh-Strong-Pass-2026'))

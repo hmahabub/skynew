@@ -1,0 +1,31 @@
+{% comment %}
+Live hint under the BDT field: USD x rate. The BDT box itself stays blank
+unless the user types the exact figure from the bank advice (blank = USD x rate).
+Needs: usd_id, rate_id, bdt_id.
+{% endcomment %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var usd = document.getElementById('{{ usd_id }}');
+    var rate = document.getElementById('{{ rate_id }}');
+    var bdt = document.getElementById('{{ bdt_id }}');
+    if (!usd || !rate || !bdt) return;
+    var hint = document.createElement('div');
+    hint.className = 'form-text text-primary';
+    bdt.insertAdjacentElement('afterend', hint);
+    function update() {
+        var u = parseFloat(usd.value), r = parseFloat(rate.value);
+        if (u > 0 && r > 0) {
+            var value = (u * r).toFixed(2);
+            hint.textContent = 'USD ' + u.toLocaleString('en-US', {minimumFractionDigits: 2}) + ' x ' + r + ' = BDT ' +
+                Number(value).toLocaleString('en-IN', {minimumFractionDigits: 2});
+            bdt.placeholder = value;
+        } else {
+            hint.textContent = '';
+            bdt.placeholder = '';
+        }
+    }
+    usd.addEventListener('input', update);
+    rate.addEventListener('input', update);
+    update();
+});
+</script>

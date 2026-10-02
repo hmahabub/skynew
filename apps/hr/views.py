@@ -119,6 +119,7 @@ def get_attendance_summary(employee, month, year):
 
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def hr_dashboard(request):
     """HR Dashboard Overview"""
     context = {
@@ -193,6 +194,7 @@ def hr_dashboard(request):
     return render(request, 'hr/dashboard.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def employee_list(request):
     """List all employees"""
     employees = Employee.objects.select_related('department', 'designation').all()
@@ -234,6 +236,7 @@ def employee_list(request):
     return render(request, 'hr/employee_list.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def employee_detail(request, pk):
     """Employee details view"""
     employee = get_object_or_404(Employee, pk=pk)
@@ -332,6 +335,7 @@ def delete_employee(request, pk):
     return render(request, 'hr/employee_confirm_delete.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def attendance_view(request):
     """Attendance management"""
     date_filter = request.GET.get('date', date.today())
@@ -366,6 +370,7 @@ def attendance_view(request):
     return render(request, 'hr/attendance.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def bulk_attendance(request):
     """Bulk attendance marking"""
     if request.method == 'POST':
@@ -399,6 +404,7 @@ def bulk_attendance(request):
     return render(request, 'hr/bulk_attendance.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def leave_requests(request):
     """Leave request management"""
     leaves = Leave.objects.select_related('employee').all().order_by('-created_at')
@@ -417,6 +423,7 @@ def leave_requests(request):
     return render(request, 'hr/leave_requests.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def apply_leave(request):
     """Apply for leave"""
     if request.method == 'POST':
@@ -493,6 +500,7 @@ def approve_leave(request, pk):
     return render(request, 'hr/approve_leave.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def payroll_list(request):
     """Payroll list"""
     payrolls = Payroll.objects.select_related('employee').all().order_by('-year', '-month')
@@ -893,6 +901,7 @@ def upload_payroll_excel(request):
     return render(request, 'hr/generate_payroll_preview.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def production_tracking(request):
     """Production output tracking"""
     productions = ProductionOutput.objects.select_related('employee').all().order_by('-date')
@@ -925,6 +934,7 @@ def production_tracking(request):
     return render(request, 'hr/production_tracking.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def export_attendance_csv(request):
     """Export attendance data to CSV"""
     date_filter = request.GET.get('date', date.today())
@@ -954,6 +964,7 @@ def export_attendance_csv(request):
     return response
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def department_list(request):
     """Department management"""
     departments = Department.objects.prefetch_related('designations', 'employees').all()
@@ -991,6 +1002,7 @@ def add_department(request):
 
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def designation_list(request):
     """Designation management"""
     designations = Designation.objects.select_related('department').all().order_by('department__name', 'name')
@@ -1120,6 +1132,7 @@ def delete_designation(request, pk):
     return render(request, 'hr/designation_delete_confirm.html', context)
 
 @login_required
+@user_passes_test(is_hr_or_admin)
 def designation_detail(request, pk):
     """View designation details"""
     designation = get_object_or_404(Designation.objects.select_related('department'), pk=pk)

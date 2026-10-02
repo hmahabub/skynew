@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ voucher.voucher_number }} – Debit Voucher – Skytex Apparel Limited</title>
+<style>
+  :root {
+    --ink: #111;
+    --paper: #fff;
+    --line: 1px solid #111;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 16px;
+    background: #d9dbde;
+    font-family: Tahoma, Verdana, "Segoe UI", sans-serif;
+    color: var(--ink);
+  }
+
+  .toolbar {
+    max-width: 210mm;
+    margin: 0 auto 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .toolbar a, .toolbar button {
+    font: 600 14px/1 Tahoma, Verdana, sans-serif;
+    padding: 9px 16px;
+    border: 1px solid #111;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .toolbar a { background: #fff; color: #111; }
+  .toolbar button { background: #111; color: #fff; }
+  .toolbar a:focus-visible, .toolbar button:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+
+  /* ---------- the voucher (A5 landscape) ---------- */
+  .voucher {
+    position: relative;
+    width: 210mm;
+    height: 148mm;
+    margin: 0 auto;
+    padding: 7mm 10mm 7mm;
+    background: var(--paper);
+    box-shadow: 0 2px 14px rgba(0,0,0,.25);
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+    font-size: 9pt;
+    font-weight: 700;
+  }
+
+  /* header */
+  /* Title gets everything left of the voucher-no box: centred on the page
+     the company name is wider than the space beside that box. */
+  .head {
+    display: grid;
+    grid-template-columns: 1fr 42mm;
+    column-gap: 4mm;
+    align-items: start;
+  }
+  .title { text-align: center; }
+  .title h1 {
+    margin: 0;
+    font: 900 21pt/1 "Arial Black", Arial, Helvetica, sans-serif;
+    letter-spacing: .3px;
+    white-space: nowrap;
+  }
+  .title .tag,
+  .title .addr {
+    font-family: "Times New Roman", Times, serif;
+    font-weight: 400;
+    margin: 0;
+  }
+  .title .tag  { font-size: 8.5pt; margin-top: 1.2mm; }
+  .title .addr { font-size: 7.5pt; margin-top: .4mm; }
+  .title .kind {
+    display: inline-block;
+    margin-top: 2mm;
+    padding: .8mm 4mm;
+    background: #000;
+    color: #fff;
+    font: 700 11pt/1.1 "Arial Narrow", Arial, sans-serif;
+    letter-spacing: .4px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .meta {
+    grid-column: 2;
+    justify-self: end;
+    width: 42mm;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6mm;
+  }
+  .meta .vno { display: flex; flex-direction: column; gap: 1mm; }
+  .box {
+    border: var(--line);
+    height: 7.5mm;
+    display: flex;
+    align-items: center;
+    padding: 0 1mm;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .date { display: flex; align-items: center; gap: 1.5mm; }
+  .date .cells { display: flex; }
+  .date .cells .box { width: 7.5mm; border-left-width: 0; justify-content: center; padding: 0; }
+  .date .cells .box:first-child { border-left-width: 1px; }
+
+  /* printed values sit on the ruled lines */
+  .fill {
+    padding: 0 1mm;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Head of account / pay to */
+  .field { display: flex; align-items: flex-end; gap: 2mm; }
+  .field span { white-space: nowrap; }
+  .field .fill { flex: 1; border-bottom: var(--line); height: 5.5mm; line-height: 5.5mm; }
+
+  /* ledger */
+  .ledger {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border: var(--line);
+    min-height: 0;
+  }
+  .grid {
+    flex: 5;
+    display: grid;
+    grid-template-columns: 1fr 32mm;
+    grid-template-rows: 7mm repeat(5, 1fr);
+    min-height: 0;
+  }
+  .grid > div {
+    border-bottom: var(--line);
+    display: flex;
+    align-items: flex-end;
+    min-width: 0;
+    padding-bottom: .6mm;
+  }
+  .grid > div:nth-child(even) { border-left: var(--line); }
+  .grid .th { justify-content: center; align-items: center; padding-bottom: 0; }
+  .grid .total-label { justify-content: flex-end; align-items: center; padding-right: 3mm; }
+  .grid .amt { justify-content: flex-end; padding-right: 2mm; font-weight: 400; }
+  .grid .amt.total { font-weight: 700; align-items: center; }
+
+  .being { width: 100%; align-items: flex-end; gap: 2mm; padding: 0 2mm 0 2mm; display: flex; min-width: 0; }
+  .being span { white-space: nowrap; }
+  .being .fill { flex: 1; border-bottom: var(--line); }
+  .row-text { padding-left: 2mm; }
+
+  .words {
+    flex: 2;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+  }
+  .words > div {
+    display: flex;
+    align-items: flex-end;
+    padding: 0 2mm .6mm;
+    gap: 2mm;
+    min-width: 0;
+  }
+  .words > div:first-child { border-bottom: var(--line); }
+  .words span { white-space: nowrap; }
+
+  /* signatures */
+  .sign {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10mm;
+    padding-top: 7mm;
+  }
+  .sign div {
+    border-top: var(--line);
+    padding-top: 1mm;
+    text-align: center;
+  }
+
+  /* a rejected voucher shouldn't pass as payable */
+  .stamp {
+    position: absolute;
+    top: 52%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-14deg);
+    border: 3px solid #b91c1c;
+    color: #b91c1c;
+    padding: 2mm 6mm;
+    font: 900 26pt/1 "Arial Black", Arial, sans-serif;
+    opacity: .55;
+    letter-spacing: 2px;
+    pointer-events: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ---------- print ---------- */
+  @page { size: 210mm 148mm; margin: 0; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .toolbar { display: none; }
+    .voucher { box-shadow: none; margin: 0; }
+  }
+
+  /* narrow screens: scale the sheet to fit instead of reflowing the form */
+  @media screen and (max-width: 820px) {
+    .voucher { zoom: .75; }
+  }
+  @media screen and (max-width: 620px) {
+    .voucher { zoom: .55; }
+  }
+  @media screen and (max-width: 440px) {
+    .voucher { zoom: .4; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <a href="{% url 'accounts:voucher_list' %}">&larr; Back to vouchers</a>
+  <button type="button" onclick="window.print()">Print voucher</button>
+</div>
+
+<main class="voucher">
+  {% if voucher.status == 'rejected' %}<div class="stamp">REJECTED</div>{% endif %}
+
+  <header class="head">
+    <div class="title">
+      <h1>SKYTEX APPAREL LIMITED</h1>
+      <p class="tag">(100% Export Oriented Readymade Garments Factory)</p>
+      <p class="addr">Foysal Dostogir Complex, Besides CDA Market, Pahartali, Chattogram</p>
+      <span class="kind">DEBIT VOUCHER</span>
+    </div>
+
+    <div class="meta">
+      <div class="vno">
+        <span>Voucher No</span>
+        <div class="box">{{ voucher.voucher_number }}</div>
+      </div>
+      <div class="date">
+        <span>Date :</span>
+        <div class="cells">
+          <div class="box">{{ voucher.voucher_date|date:"d" }}</div>
+          <div class="box">{{ voucher.voucher_date|date:"m" }}</div>
+          <div class="box">{{ voucher.voucher_date|date:"y" }}</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="field">
+    <span>Head of Account</span>
+    <div class="fill">{{ head_of_account }}</div>
+  </div>
+
+  <div class="field">
+    <span>Pay to</span>
+    <div class="fill">{{ pay_to }}</div>
+  </div>
+
+  <section class="ledger">
+    <div class="grid">
+      <div class="th">Particulars</div>
+      <div class="th">TAKA</div>
+
+      <div>
+        <div class="being">
+          <span>Being the amount</span>
+          <div class="fill">{{ voucher.description }}</div>
+        </div>
+      </div>
+      <div class="amt">{{ amount }}</div>
+
+      {% for line in particulars %}
+      <div><div class="fill row-text">{{ line }}</div></div>
+      <div class="amt"></div>
+      {% endfor %}
+
+      <div class="total-label">Total</div>
+      <div class="amt total">{{ amount }}</div>
+    </div>
+
+    <div class="words">
+      <div>
+        <span>TAKA (In words) :</span>
+        <div class="fill">{{ words_line_1 }}</div>
+      </div>
+      <div>
+        <div class="fill">{{ words_line_2 }}</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="sign">
+    <div>Received by</div>
+    <div>Checked by</div>
+    <div>Head of Finance</div>
+    <div>Director/MD</div>
+  </footer>
+
+</main>
+
+</body>
+</html>

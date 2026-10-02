@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Sum, Count, Q, F, Prefetch
 from django.core.paginator import Paginator
+from django.forms.models import model_to_dict
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -18,13 +19,13 @@ from .models import (
     TrimReceipt, TrimReceiptDetail,
     ProductionIssue, ProductionIssueDetail, FinishedGoods,
     FinishedGoodsProduction, Dispatch, DispatchDetail,
-    StockMovement,
+    StockMovement, StockTransfer,
     Machine, MachineEvent, SparePart, SparePartConsumption,
     StationeryItem, StationeryConsumption, SupplyAdjustment,
 )
 from .forms import (
-    FabricForm, FabricRollForm, FabricStockInForm, FabricStockOutForm,
-    TrimForm, TrimStockInForm, TrimStockOutForm, GoodsReceiptForm,
+    FabricForm, FabricRollForm, FabricStockInForm, FabricStockTransferForm,
+    TrimForm, TrimStockInForm, TrimStockTransferForm, GoodsReceiptForm,
     GoodsReceiptDetailForm, TrimReceiptForm, TrimReceiptDetailForm,
     ProductionIssueForm, ProductionIssueDetailForm,
     FinishedGoodsForm, FinishedGoodsStockInForm,
@@ -136,6 +137,25 @@ def _form_errors_to_messages(request, form, prefix):
         for error in errors:
             messages.error(request, f"{prefix} - {label}{error}")
 
+def _copy_source(request, model):
+    """The item named by ?copy_from=<pk> on an Add page, or None."""
+    pk = request.GET.get('copy_from')
+    if pk and pk.isdigit():
+        return model.objects.filter(pk=pk).first()
+    return None
+
+def _copy_context(model, form_class, source, label):
+    """
+    Initial form values copied from `source` (everything the form edits,
+    so never stock), plus the choices for the "Copy from existing" picker.
+    """
+    initial = model_to_dict(source, fields=form_class._meta.fields) if source else {}
+    choices = [(obj.pk, label(obj)) for obj in model.objects.filter(is_active=True).order_by('-created_at')]
+    return initial, {'copy_source': source, 'copy_choices': choices}
+
+def _pending_transfer_annotation():
+    return Sum('transfers__quantity', filter=Q(transfers__status='pending'))
+
 def _in_stock_lots_prefetch():
     return Prefetch(
         'rolls',
@@ -145,13 +165,24 @@ def _in_stock_lots_prefetch():
 
 def _fabric_lots_map(fabrics):
     """
-    {fabric_id: [{id, lot, remaining}, ...]} for the "-" (Remove Stock)
-    popup's lot dropdown. Fabrics must come from a queryset using
-    _in_stock_lots_prefetch().
+    {fabric_id: [{id, lot, available, pending}, ...]} for the Transfer
+    Stock popup's lot dropdown - available is what's left in the lot minus
+    transfers still awaiting approval. Fabrics must come from a queryset
+    using _in_stock_lots_prefetch().
     """
+    lot_ids = [lot.pk for fabric in fabrics for lot in fabric.in_stock_lots]
+    pending = dict(
+        StockTransfer.objects.filter(status='pending', fabric_roll_id__in=lot_ids)
+        .values_list('fabric_roll_id').annotate(total=Sum('quantity'))
+    )
     return {
         fabric.pk: [
-            {'id': lot.pk, 'lot': lot.lot_number, 'remaining': str(lot.remaining_length)}
+            {
+                'id': lot.pk,
+                'lot': lot.lot_number,
+                'available': str(lot.remaining_length - pending.get(lot.pk, 0)),
+                'pending': str(pending.get(lot.pk, 0)),
+            }
             for lot in fabric.in_stock_lots
         ]
         for fabric in fabrics
@@ -196,10 +227,10 @@ def _add_fabric_lot(fabric, quantity, user, lot_number='', location='Main Wareho
 
 @login_required
 def fabric_list(request):
-    """List all fabrics, with +/- popups to add or remove stock in place."""
+    """List all fabrics (newest first), with popups to add or transfer stock in place."""
     fabrics = Fabric.objects.filter(is_active=True).prefetch_related(
         _in_stock_lots_prefetch()
-    ).order_by('-created_at')
+    ).annotate(pending_transfer_qty=_pending_transfer_annotation()).order_by('-created_at')
 
     # Search
     search = request.GET.get('search')
@@ -240,16 +271,21 @@ def fabric_list(request):
         'current_type': fabric_type,
         'current_stock_status': stock_status,
         'stock_in_form': FabricStockInForm(),
-        'stock_out_reasons': FabricStockOutForm.REASON_CHOICES,
+        'transfer_reasons': StockTransfer.REASON_CHOICES,
     }
     return render(request, 'inventory/fabric_list.html', context)
 
 @login_required
 @user_passes_test(is_inventory_or_admin)
 def add_fabric(request):
-    """Add new fabric, optionally with its opening stock."""
+    """
+    Add new fabric, optionally with its opening stock. ?copy_from=<pk>
+    pre-fills the form from an existing fabric.
+    """
+    source = _copy_source(request, Fabric)
+    initial, copy_context = _copy_context(Fabric, FabricForm, source, str)
     if request.method == 'POST':
-        form = FabricForm(request.POST)
+        form = FabricForm(request.POST, user=request.user)
         if form.is_valid():
             with transaction.atomic():
                 fabric = form.save()
@@ -266,12 +302,13 @@ def add_fabric(request):
             messages.success(request, f'Fabric "{fabric.fabric_name}" added successfully!')
             return redirect('inventory:fabric_list')
     else:
-        form = FabricForm()
+        form = FabricForm(user=request.user, initial=initial)
 
     context = {
         'active': 'inventory',
         'page_title': 'Add Fabric',
         'form': form,
+        **copy_context,
     }
     return render(request, 'inventory/fabric_form.html', context)
 
@@ -281,13 +318,13 @@ def edit_fabric(request, pk):
     """Edit fabric"""
     fabric = get_object_or_404(Fabric, pk=pk)
     if request.method == 'POST':
-        form = FabricForm(request.POST, instance=fabric)
+        form = FabricForm(request.POST, instance=fabric, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, f'Fabric "{fabric.fabric_name}" updated successfully!')
             return redirect('inventory:fabric_list')
     else:
-        form = FabricForm(instance=fabric)
+        form = FabricForm(instance=fabric, user=request.user)
 
     context = {
         'active': 'inventory',
@@ -329,70 +366,40 @@ def add_fabric_stock(request, pk):
 @login_required
 @user_passes_test(is_inventory_or_admin)
 @require_POST
-def remove_fabric_stock(request, pk):
+def transfer_fabric_stock(request, pk):
     """
-    "-" popup: take stock out of one lot of a fabric (issued to
-    production, damaged, returned...). Applies immediately - there's no
-    approval step - and is logged in the fabric's stock history.
+    "Transfer Stock" popup: request to take stock out of one lot of a
+    fabric (issued to production, damaged, returned...). Nothing moves
+    until an admin approves it (approve_stock_transfer).
     """
     fabric = get_object_or_404(Fabric, pk=pk)
-    form = FabricStockOutForm(request.POST, fabric=fabric)
+    form = FabricStockTransferForm(request.POST, fabric=fabric)
     if not form.is_valid():
-        _form_errors_to_messages(request, form, f'Remove stock from "{fabric.fabric_name}"')
+        _form_errors_to_messages(request, form, f'Transfer stock from "{fabric.fabric_name}"')
         return _redirect_back(request, 'inventory:fabric_list')
 
-    quantity = form.cleaned_data['quantity']
-    reason = form.cleaned_data['reason']
-    reason_label = dict(FabricStockOutForm.REASON_CHOICES)[reason]
-    notes = form.cleaned_data['notes']
-    try:
-        with transaction.atomic():
-            # Re-check against locked rows so two people removing stock at
-            # the same moment can't take it below zero.
-            fabric = Fabric.objects.select_for_update().get(pk=fabric.pk)
-            if quantity > fabric.current_stock:
-                raise ValueError(f"Only {fabric.current_stock} {fabric.unit} of this fabric is in stock.")
-
-            lot = form.cleaned_data['lot']
-            if lot is not None:
-                lot = FabricRoll.objects.select_for_update().get(pk=lot.pk)
-                if quantity > lot.remaining_length:
-                    raise ValueError(f"Lot {lot.lot_number} only has {lot.remaining_length} {fabric.unit} left.")
-                lot.used_length += quantity
-                lot.save()
-
-            fabric.current_stock -= quantity
-            fabric.save(update_fields=['current_stock', 'updated_at'])
-
-            movement = StockMovement.objects.create(
-                movement_type='issue' if reason == 'issue' else 'adjustment',
-                reference_number='',
-                reference_id=fabric.pk,
-                fabric=fabric,
-                fabric_roll=lot,
-                quantity=-quantity,
-                issued_to=form.cleaned_data['issued_to'],
-                notes=f"{reason_label} - {notes}" if notes else reason_label,
-                created_by=request.user,
-            )
-            movement.reference_number = movement.movement_number
-            movement.save(update_fields=['reference_number'])
-    except ValueError as exc:
-        messages.error(request, f'Remove stock from "{fabric.fabric_name}" - {exc}')
-    else:
-        lot_text = f" (lot {lot.lot_number})" if lot is not None else ""
-        issued_to = form.cleaned_data['issued_to']
-        to_text = f" (issued to {issued_to})" if issued_to else ""
-        messages.success(
-            request,
-            f'Removed {quantity} {fabric.get_unit_display()} from "{fabric.fabric_name}"{lot_text} - {reason_label}{to_text}.'
-        )
+    transfer = StockTransfer.objects.create(
+        fabric=fabric,
+        fabric_roll=form.cleaned_data['lot'],
+        quantity=form.cleaned_data['quantity'],
+        reason=form.cleaned_data['reason'],
+        issued_to=form.cleaned_data['issued_to'],
+        notes=form.cleaned_data['notes'],
+        requested_by=request.user,
+    )
+    messages.success(
+        request,
+        f'Transfer {transfer.transfer_number} of {transfer.quantity} {fabric.get_unit_display()} '
+        f'from "{fabric.fabric_name}" sent for admin approval. Stock changes once it is approved.'
+    )
     return _redirect_back(request, 'inventory:fabric_list')
 
 @login_required
 def trim_list(request):
-    """List all trims"""
-    trims = Trim.objects.filter(is_active=True).select_related('supplier')
+    """List all trims (newest first), with popups to add or transfer stock in place."""
+    trims = Trim.objects.filter(is_active=True).annotate(
+        pending_transfer_qty=_pending_transfer_annotation()
+    ).order_by('-created_at')
 
     # Search
     search = request.GET.get('search')
@@ -416,27 +423,30 @@ def trim_list(request):
         'search': search,
         'current_type': trim_type,
         'trim_stock_in_form': TrimStockInForm(),
-        'stock_out_reasons': TrimStockOutForm.REASON_CHOICES,
+        'transfer_reasons': StockTransfer.REASON_CHOICES,
     }
     return render(request, 'inventory/trim_list.html', context)
 
 @login_required
 @user_passes_test(is_inventory_or_admin)
 def add_trim(request):
-    """Add new trim"""
+    """Add new trim. ?copy_from=<pk> pre-fills the form from an existing trim."""
+    source = _copy_source(request, Trim)
+    initial, copy_context = _copy_context(Trim, TrimForm, source, str)
     if request.method == 'POST':
-        form = TrimForm(request.POST)
+        form = TrimForm(request.POST, user=request.user)
         if form.is_valid():
             trim = form.save()
             messages.success(request, f'Trim "{trim.trim_name}" added successfully!')
             return redirect('inventory:trim_list')
     else:
-        form = TrimForm()
+        form = TrimForm(user=request.user, initial=initial)
 
     context = {
         'active': 'inventory',
         'page_title': 'Add Trim',
         'form': form,
+        **copy_context,
     }
     return render(request, 'inventory/trim_form.html', context)
 
@@ -446,13 +456,13 @@ def edit_trim(request, pk):
     """Edit trim"""
     trim = get_object_or_404(Trim, pk=pk)
     if request.method == 'POST':
-        form = TrimForm(request.POST, instance=trim)
+        form = TrimForm(request.POST, instance=trim, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, f'Trim "{trim.trim_name}" updated successfully!')
             return redirect('inventory:trim_list')
     else:
-        form = TrimForm(instance=trim)
+        form = TrimForm(instance=trim, user=request.user)
 
     context = {
         'active': 'inventory',
@@ -496,50 +506,110 @@ def add_trim_stock(request, pk):
 @login_required
 @user_passes_test(is_inventory_or_admin)
 @require_POST
-def remove_trim_stock(request, pk):
+def transfer_trim_stock(request, pk):
     """
-    "-" popup: take stock out of a trim (issued to production, damaged,
-    returned...). Applies immediately and is logged in the stock history.
+    "Transfer Stock" popup: request to take stock out of a trim. Nothing
+    moves until an admin approves it (approve_stock_transfer).
     """
     trim = get_object_or_404(Trim, pk=pk)
-    form = TrimStockOutForm(request.POST, trim=trim)
+    form = TrimStockTransferForm(request.POST, trim=trim)
     if not form.is_valid():
-        _form_errors_to_messages(request, form, f'Remove stock from "{trim.trim_name}"')
+        _form_errors_to_messages(request, form, f'Transfer stock from "{trim.trim_name}"')
         return _redirect_back(request, 'inventory:trim_list')
 
-    quantity = form.cleaned_data['quantity']
-    reason = form.cleaned_data['reason']
-    reason_label = dict(TrimStockOutForm.REASON_CHOICES)[reason]
-    issued_to = form.cleaned_data['issued_to']
-    notes = form.cleaned_data['notes']
-    try:
-        with transaction.atomic():
-            # Re-check against the locked row so two people removing stock
-            # at the same moment can't take it below zero.
-            trim = Trim.objects.select_for_update().get(pk=trim.pk)
-            if quantity > trim.current_stock:
-                raise ValueError(f"Only {trim.current_stock} {trim.unit} of this trim is in stock.")
-            trim.current_stock -= quantity
-            trim.save(update_fields=['current_stock', 'updated_at'])
-
-            movement = StockMovement.objects.create(
-                movement_type='issue' if reason == 'issue' else 'adjustment',
-                reference_number='',
-                reference_id=trim.pk,
-                trim=trim,
-                quantity=-quantity,
-                issued_to=issued_to,
-                notes=f"{reason_label} - {notes}" if notes else reason_label,
-                created_by=request.user,
-            )
-            movement.reference_number = movement.movement_number
-            movement.save(update_fields=['reference_number'])
-    except ValueError as exc:
-        messages.error(request, f'Remove stock from "{trim.trim_name}" - {exc}')
-    else:
-        to_text = f" (issued to {issued_to})" if issued_to else ""
-        messages.success(request, f'Removed {quantity} {trim.unit} from "{trim.trim_name}" - {reason_label}{to_text}.')
+    transfer = StockTransfer.objects.create(
+        trim=trim,
+        quantity=form.cleaned_data['quantity'],
+        reason=form.cleaned_data['reason'],
+        issued_to=form.cleaned_data['issued_to'],
+        notes=form.cleaned_data['notes'],
+        requested_by=request.user,
+    )
+    messages.success(
+        request,
+        f'Transfer {transfer.transfer_number} of {form.cleaned_data["quantity"]} {trim.unit} '
+        f'from "{trim.trim_name}" sent for admin approval. Stock changes once it is approved.'
+    )
     return _redirect_back(request, 'inventory:trim_list')
+
+def _apply_stock_transfer(transfer, approver):
+    """
+    Deduct an approved transfer's stock and log it. Call inside
+    transaction.atomic(); raises ValueError if the stock is no longer there.
+    """
+    quantity = transfer.quantity
+    reason_label = transfer.get_reason_display()
+    notes = f"{reason_label} - {transfer.notes}" if transfer.notes else reason_label
+    movement_kwargs = {}
+
+    if transfer.fabric_id:
+        fabric = Fabric.objects.select_for_update().get(pk=transfer.fabric_id)
+        if quantity > fabric.current_stock:
+            raise ValueError(f"Only {fabric.current_stock} {fabric.unit} of {fabric.fabric_name} is in stock.")
+        lot = None
+        if transfer.fabric_roll_id:
+            lot = FabricRoll.objects.select_for_update().get(pk=transfer.fabric_roll_id)
+            if quantity > lot.remaining_length:
+                raise ValueError(f"Lot {lot.lot_number} only has {lot.remaining_length} {fabric.unit} left.")
+            lot.used_length += quantity
+            lot.save()
+        fabric.current_stock -= quantity
+        fabric.save(update_fields=['current_stock', 'updated_at'])
+        movement_kwargs = {'fabric': fabric, 'fabric_roll': lot}
+    else:
+        trim = Trim.objects.select_for_update().get(pk=transfer.trim_id)
+        if quantity > trim.current_stock:
+            raise ValueError(f"Only {trim.current_stock} {trim.unit} of {trim.trim_name} is in stock.")
+        trim.current_stock -= int(quantity)
+        trim.save(update_fields=['current_stock', 'updated_at'])
+        movement_kwargs = {'trim': trim}
+
+    StockMovement.objects.create(
+        movement_type='transfer',
+        reference_number=transfer.transfer_number,
+        reference_id=transfer.pk,
+        quantity=-quantity,
+        issued_to=transfer.issued_to,
+        notes=notes,
+        created_by=approver,
+        **movement_kwargs,
+    )
+    transfer.status = 'approved'
+    transfer.approved_by = approver
+    transfer.approved_date = date.today()
+    transfer.save(update_fields=['status', 'approved_by', 'approved_date'])
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def approve_stock_transfer(request, pk):
+    """Approve a pending stock transfer - this is the moment stock is deducted."""
+    transfer = get_object_or_404(StockTransfer.objects.select_related('fabric', 'trim'), pk=pk)
+    if transfer.status != 'pending':
+        messages.error(request, f"Transfer {transfer.transfer_number} has already been {transfer.get_status_display().lower()}.")
+    else:
+        try:
+            with transaction.atomic():
+                _apply_stock_transfer(transfer, request.user)
+        except ValueError as exc:
+            messages.error(request, f"Can't approve {transfer.transfer_number}: {exc}")
+        else:
+            messages.success(request, f"Transfer {transfer.transfer_number} approved - stock updated.")
+    return _redirect_back(request, 'inventory:pending_approvals')
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+def reject_stock_transfer(request, pk):
+    """Reject a pending stock transfer - no stock change."""
+    transfer = get_object_or_404(StockTransfer, pk=pk)
+    if transfer.status == 'pending':
+        transfer.status = 'rejected'
+        transfer.approved_by = request.user
+        transfer.approved_date = date.today()
+        transfer.save(update_fields=['status', 'approved_by', 'approved_date'])
+        messages.success(request, f"Transfer {transfer.transfer_number} rejected.")
+    return _redirect_back(request, 'inventory:pending_approvals')
 
 @login_required
 def goods_receipts(request):
@@ -611,6 +681,9 @@ def add_goods_receipt(request):
                     total_quantity = Decimal('0')
 
                     for row in rows:
+                        if not request.user.is_superuser:
+                            # Unit price is admin-only - use the fabric's own price.
+                            row['unit_price'] = Fabric.objects.get(pk=row['fabric_id']).unit_price or 0
                         detail = GoodsReceiptDetail.objects.create(
                             goods_receipt=receipt,
                             fabric_id=row['fabric_id'],
@@ -621,7 +694,7 @@ def add_goods_receipt(request):
                         total_quantity += detail.quantity
 
                         # Each received line becomes its own lot, so it can
-                        # later be taken out with the "-" (Remove Stock) popup.
+                        # later be taken out with the "-" (Transfer Stock) popup.
                         _add_fabric_lot(
                             detail.fabric, detail.quantity, request.user,
                             notes=f"Goods receipt from {receipt.supplier.supplier_name}",
@@ -648,38 +721,33 @@ def add_goods_receipt(request):
 @login_required
 def fabric_stock_ledger(request, pk):
     """
-    All stock-affecting activity (lot additions, issues/adjustments) for a
-    single fabric, newest first, with a running balance - plus its current
-    lot breakdown.
+    A fabric's stock history, newest first, split into Stock In and Stock
+    Out tables - plus transfers awaiting approval and its lot breakdown.
     """
     fabric = get_object_or_404(Fabric.objects.prefetch_related(_in_stock_lots_prefetch()), pk=pk)
-    movements = list(
-        StockMovement.objects.filter(fabric=fabric).select_related('fabric_roll', 'created_by')
-        .order_by('movement_date', 'created_at')
-    )
+    movements = StockMovement.objects.filter(fabric=fabric).select_related(
+        'fabric_roll', 'created_by'
+    ).order_by('-movement_date', '-created_at')
 
-    # Work out a running balance ending at the fabric's current stock, so
-    # the ledger reads naturally even though we're computing it after the
-    # fact from a signed-quantity log.
-    total_delta = sum((m.quantity for m in movements), Decimal('0'))
-    running_balance = fabric.current_stock - total_delta
-    for movement in movements:
-        running_balance += movement.quantity
-        movement.balance_after = running_balance
-
-    movements.reverse()  # newest first for display
-
-    lots = FabricRoll.objects.filter(fabric=fabric).order_by('-received_date')
+    stock_in = [m for m in movements if m.quantity > 0]
+    stock_out = [m for m in movements if m.quantity < 0]
 
     context = {
         'active': 'inventory',
         'page_title': f'Stock Ledger - {fabric.fabric_name}',
         'fabric': fabric,
-        'movements': movements,
-        'lots': lots,
+        'stock_in': stock_in,
+        'stock_out': stock_out,
+        'total_in': sum((m.quantity for m in stock_in), Decimal('0')),
+        'total_out': -sum((m.quantity for m in stock_out), Decimal('0')),
+        'transfer_requests': fabric.transfers.exclude(status='approved').select_related(
+            'fabric_roll', 'requested_by', 'approved_by'
+        ),
+        'lots': FabricRoll.objects.filter(fabric=fabric).order_by('-received_date'),
         'fabric_lots': _fabric_lots_map([fabric]),
         'stock_in_form': FabricStockInForm(),
-        'stock_out_reasons': FabricStockOutForm.REASON_CHOICES,
+        'transfer_reasons': StockTransfer.REASON_CHOICES,
+        'pending_transfer_qty': StockTransfer.pending_qty(fabric=fabric),
     }
     return render(request, 'inventory/fabric_stock_ledger.html', context)
 
@@ -754,6 +822,9 @@ def add_trim_receipt(request):
                     total_quantity = 0
 
                     for row in rows:
+                        if not request.user.is_superuser:
+                            # Unit price is admin-only - use the trim's own price.
+                            row['unit_price'] = Trim.objects.get(pk=row['trim_id']).unit_price or 0
                         detail = TrimReceiptDetail.objects.create(
                             trim_receipt=receipt,
                             trim_id=row['trim_id'],
@@ -798,29 +869,31 @@ def add_trim_receipt(request):
 @login_required
 def trim_stock_ledger(request, pk):
     """
-    All stock-affecting activity (stock added, Trim Receipts) for a single
-    trim, newest first, with a running balance.
+    A trim's stock history, newest first, split into Stock In and Stock
+    Out tables - plus transfers awaiting approval.
     """
     trim = get_object_or_404(Trim, pk=pk)
-    movements = list(
-        StockMovement.objects.filter(trim=trim).order_by('movement_date', 'created_at')
-    )
+    movements = StockMovement.objects.filter(trim=trim).select_related(
+        'created_by'
+    ).order_by('-movement_date', '-created_at')
 
-    total_delta = sum((m.quantity for m in movements), Decimal('0'))
-    running_balance = trim.current_stock - total_delta
-    for movement in movements:
-        running_balance += movement.quantity
-        movement.balance_after = running_balance
-
-    movements.reverse()  # newest first for display
+    stock_in = [m for m in movements if m.quantity > 0]
+    stock_out = [m for m in movements if m.quantity < 0]
 
     context = {
         'active': 'inventory',
         'page_title': f'Stock Ledger - {trim.trim_name}',
         'trim': trim,
-        'movements': movements,
+        'stock_in': stock_in,
+        'stock_out': stock_out,
+        'total_in': sum((m.quantity for m in stock_in), Decimal('0')),
+        'total_out': -sum((m.quantity for m in stock_out), Decimal('0')),
+        'transfer_requests': trim.transfers.exclude(status='approved').select_related(
+            'requested_by', 'approved_by'
+        ),
         'trim_stock_in_form': TrimStockInForm(),
-        'stock_out_reasons': TrimStockOutForm.REASON_CHOICES,
+        'transfer_reasons': StockTransfer.REASON_CHOICES,
+        'pending_transfer_qty': StockTransfer.pending_qty(trim=trim),
     }
     return render(request, 'inventory/trim_stock_ledger.html', context)
 
@@ -918,10 +991,10 @@ def add_production_issue(request):
 
 @login_required
 def finished_goods_list(request):
-    """List all finished goods, with how much of each is waiting on a pending dispatch."""
+    """List all finished goods (newest first), with how much of each is waiting on a pending dispatch."""
     finished_goods = FinishedGoods.with_pending_dispatch(
         FinishedGoods.objects.filter(is_active=True)
-    )
+    ).order_by('-created_at')
 
     # Search
     search = request.GET.get('search')
@@ -958,20 +1031,26 @@ def finished_goods_list(request):
 @login_required
 @user_passes_test(is_inventory_or_admin)
 def add_finished_goods(request):
-    """Add new finished goods"""
+    """
+    Add new finished goods. ?copy_from=<pk> pre-fills the form from an
+    existing item - usually only the size or color then needs changing.
+    """
+    source = _copy_source(request, FinishedGoods)
+    initial, copy_context = _copy_context(FinishedGoods, FinishedGoodsForm, source, str)
     if request.method == 'POST':
-        form = FinishedGoodsForm(request.POST)
+        form = FinishedGoodsForm(request.POST, user=request.user)
         if form.is_valid():
             finished = form.save()
             messages.success(request, f'Finished goods "{finished}" added successfully!')
             return redirect('inventory:finished_goods_list')
     else:
-        form = FinishedGoodsForm()
+        form = FinishedGoodsForm(user=request.user, initial=initial)
 
     context = {
         'active': 'inventory',
         'page_title': 'Add Finished Goods',
         'form': form,
+        **copy_context,
     }
     return render(request, 'inventory/finished_goods_form.html', context)
 
@@ -981,13 +1060,13 @@ def edit_finished_goods(request, pk):
     """Edit finished goods"""
     finished = get_object_or_404(FinishedGoods, pk=pk)
     if request.method == 'POST':
-        form = FinishedGoodsForm(request.POST, instance=finished)
+        form = FinishedGoodsForm(request.POST, instance=finished, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, f'Finished goods "{finished}" updated successfully!')
             return redirect('inventory:finished_goods_list')
     else:
-        form = FinishedGoodsForm(instance=finished)
+        form = FinishedGoodsForm(instance=finished, user=request.user)
 
     context = {
         'active': 'inventory',
@@ -1043,27 +1122,25 @@ def add_finished_goods_stock(request, pk):
 @login_required
 def finished_goods_stock_ledger(request, pk):
     """
-    All stock-affecting activity (stock added, approved dispatches) for a
-    single finished goods item, newest first, with a running balance.
+    A finished goods item's stock history, newest first, split into Stock
+    In (stock added) and Stock Out (approved dispatches) tables.
     """
     finished = get_object_or_404(FinishedGoods, pk=pk)
-    movements = list(
-        StockMovement.objects.filter(finished_goods=finished).order_by('movement_date', 'created_at')
-    )
+    movements = StockMovement.objects.filter(finished_goods=finished).select_related(
+        'created_by'
+    ).order_by('-movement_date', '-created_at')
 
-    total_delta = sum((m.quantity for m in movements), Decimal('0'))
-    running_balance = Decimal(finished.quantity_in_stock) - total_delta
-    for movement in movements:
-        running_balance += movement.quantity
-        movement.balance_after = running_balance
-
-    movements.reverse()  # newest first for display
+    stock_in = [m for m in movements if m.quantity > 0]
+    stock_out = [m for m in movements if m.quantity < 0]
 
     context = {
         'active': 'inventory',
         'page_title': f'Stock Ledger - {finished.style}',
         'finished_goods': finished,
-        'movements': movements,
+        'stock_in': stock_in,
+        'stock_out': stock_out,
+        'total_in': sum((m.quantity for m in stock_in), Decimal('0')),
+        'total_out': -sum((m.quantity for m in stock_out), Decimal('0')),
         'pending_dispatch_items': finished.dispatch_items.exclude(
             dispatch__status='dispatched'
         ).select_related('dispatch'),
@@ -1343,10 +1420,14 @@ def reject_dispatch(request, pk):
 @user_passes_test(lambda u: u.is_superuser)
 def pending_approvals(request):
     """
-    Everything awaiting superuser approval: Dispatches waiting to be marked
-    Dispatched, Machine sold/scrapped requests, and Supply (Spare Part /
-    Stationery) Adjustments - superuser only.
+    Everything awaiting superuser approval: Stock Transfers, Dispatches
+    waiting to be marked Dispatched, Machine sold/scrapped requests, and
+    Supply (Spare Part / Stationery) Adjustments - superuser only.
     """
+    pending_transfers = StockTransfer.objects.filter(status='pending').select_related(
+        'fabric', 'fabric_roll', 'trim', 'requested_by'
+    )
+
     pending_dispatches = Dispatch.objects.filter(dispatch_approval='pending').select_related(
         'project', 'project__buyer', 'approval_requested_by'
     )
@@ -1359,9 +1440,12 @@ def pending_approvals(request):
         'spare_part', 'stationery_item', 'created_by'
     )
 
+    from apps.accounts.models import CostVoucher
     context = {
         'active': 'inventory',
         'page_title': 'Pending Approvals',
+        'pending_vouchers': CostVoucher.objects.filter(status='pending').select_related('project', 'requested_by'),
+        'pending_transfers': pending_transfers,
         'pending_dispatches': pending_dispatches,
         'machine_events': machine_events,
         'supply_adjustments_pending': supply_adjustments_pending,
@@ -1754,13 +1838,13 @@ def spare_part_list(request):
 def add_spare_part(request):
     """Add new spare part"""
     if request.method == 'POST':
-        form = SparePartForm(request.POST)
+        form = SparePartForm(request.POST, user=request.user)
         if form.is_valid():
             part = form.save()
             messages.success(request, f'Spare part "{part.part_name}" added successfully!')
             return redirect('inventory:spare_part_list')
     else:
-        form = SparePartForm()
+        form = SparePartForm(user=request.user)
 
     context = {'active': 'inventory', 'page_title': 'Add Spare Part', 'form': form}
     return render(request, 'inventory/spare_part_form.html', context)
@@ -1771,13 +1855,13 @@ def edit_spare_part(request, pk):
     """Edit spare part"""
     part = get_object_or_404(SparePart, pk=pk)
     if request.method == 'POST':
-        form = SparePartForm(request.POST, instance=part)
+        form = SparePartForm(request.POST, user=request.user, instance=part)
         if form.is_valid():
             form.save()
             messages.success(request, f'Spare part "{part.part_name}" updated successfully!')
             return redirect('inventory:spare_part_list')
     else:
-        form = SparePartForm(instance=part)
+        form = SparePartForm(user=request.user, instance=part)
 
     context = {'active': 'inventory', 'page_title': 'Edit Spare Part', 'form': form, 'spare_part': part}
     return render(request, 'inventory/spare_part_form.html', context)
@@ -1853,7 +1937,7 @@ def record_spare_part_consumption(request, pk):
                         department=department,
                         machine=form.cleaned_data['machine'],
                         quantity=quantity,
-                        unit_price_at_consumption=part.unit_price,
+                        unit_price_at_consumption=part.unit_price or 0,
                         consumption_date=form.cleaned_data['consumption_date'],
                         notes=form.cleaned_data['notes'],
                         issued_by=request.user,
@@ -1916,13 +2000,13 @@ def stationery_list(request):
 def add_stationery_item(request):
     """Add new stationery item"""
     if request.method == 'POST':
-        form = StationeryItemForm(request.POST)
+        form = StationeryItemForm(request.POST, user=request.user)
         if form.is_valid():
             item = form.save()
             messages.success(request, f'Stationery item "{item.item_name}" added successfully!')
             return redirect('inventory:stationery_list')
     else:
-        form = StationeryItemForm()
+        form = StationeryItemForm(user=request.user)
 
     context = {'active': 'inventory', 'page_title': 'Add Stationery Item', 'form': form}
     return render(request, 'inventory/stationery_form.html', context)
@@ -1933,13 +2017,13 @@ def edit_stationery_item(request, pk):
     """Edit stationery item"""
     item = get_object_or_404(StationeryItem, pk=pk)
     if request.method == 'POST':
-        form = StationeryItemForm(request.POST, instance=item)
+        form = StationeryItemForm(request.POST, user=request.user, instance=item)
         if form.is_valid():
             form.save()
             messages.success(request, f'Stationery item "{item.item_name}" updated successfully!')
             return redirect('inventory:stationery_list')
     else:
-        form = StationeryItemForm(instance=item)
+        form = StationeryItemForm(user=request.user, instance=item)
 
     context = {'active': 'inventory', 'page_title': 'Edit Stationery Item', 'form': form, 'stationery_item': item}
     return render(request, 'inventory/stationery_form.html', context)
@@ -2010,7 +2094,7 @@ def record_stationery_consumption(request, pk):
                         stationery_item=item,
                         department=department,
                         quantity=quantity,
-                        unit_price_at_consumption=item.unit_price,
+                        unit_price_at_consumption=item.unit_price or 0,
                         consumption_date=form.cleaned_data['consumption_date'],
                         notes=form.cleaned_data['notes'],
                         issued_by=request.user,

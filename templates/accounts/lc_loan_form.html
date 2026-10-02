@@ -1,9 +1,9 @@
 {% extends 'base/base.html' %}
 {% load static %}
 
-{% block title %}Add Loan Against LC - SkyTex ERP{% endblock %}
+{% block title %}Take Loan Against LC - SkyTex ERP{% endblock %}
 
-{% block page_title %}Add Loan - {{ lc.lc_number }}{% endblock %}
+{% block page_title %}Take Loan - {{ lc.lc_number }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -12,8 +12,9 @@
             <div class="stat-card">
                 <div class="alert alert-info py-2 small mb-3">
                     <i class="fas fa-info-circle"></i>
-                    Recording a loan against LC <strong>{{ lc.lc_number }}</strong>.
-                    Interest and other charges are flat one-time amounts, not an accruing schedule.
+                    Taking a loan against LC <strong>{{ lc.lc_number }}</strong> - the amount is added to the Cash Book (bank).
+                    Interest and other charges are flat one-time amounts owed on top of the loan.
+                    Pay it back with <em>Make Payment</em> on the LC page; when the LC completes, anything still owed is adjusted from it.
                 </div>
 
                 <form method="post">
@@ -64,11 +65,6 @@
                                 {{ form.other_charges }}
                             </div>
                         </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Repaid Amount</label>
-                        {{ form.repaid_amount }}
                     </div>
 
                     <div class="mb-3">

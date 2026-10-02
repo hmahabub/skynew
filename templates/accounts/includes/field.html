@@ -1,0 +1,7 @@
+{% comment %}One form field: label (with * if required), input, help text and errors. Use: {% include 'accounts/includes/field.html' with field=form.amount %}{% endcomment %}
+<div class="mb-3{% if wrapper_class %} {{ wrapper_class }}{% endif %}">
+    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+    {{ field }}
+    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+    {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+</div>

@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Buyers - SkyTex ERP{% endblock %}
 
@@ -66,10 +67,10 @@
                         <td><span class="badge bg-info">{{ buyer.country }}</span></td>
                         <td>{{ buyer.email }}</td>
                         <td>{{ buyer.phone }}</td>
-                        <td>${{ buyer.credit_limit|floatformat:2 }}</td>
+                        <td>{{ buyer.credit_limit|usd }}</td>
                         <td>
                             <span class="{% if buyer.outstanding_balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                                ${{ buyer.outstanding_balance|floatformat:2 }}
+                                {{ buyer.outstanding_balance|usd }}
                             </span>
                         </td>
                         <td>

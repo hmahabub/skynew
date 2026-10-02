@@ -63,6 +63,7 @@
                         <th>Type</th>
                         <th>Color</th>
                         <th>Size</th>
+                        {% if user.is_superuser %}<th title="Only admins can see this">Unit Price</th>{% endif %}
                         <th>Stock</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -76,9 +77,13 @@
                         <td><span class="badge bg-info">{{ trim.get_trim_type_display }}</span></td>
                         <td>{{ trim.color|default:"-" }}</td>
                         <td>{{ trim.size|default:"-" }}</td>
+                        {% if user.is_superuser %}<td>{{ trim.unit_price|default_if_none:"-" }}</td>{% endif %}
                         <td>
                             <strong>{{ trim.current_stock }}</strong>
                             <small class="text-muted">{{ trim.unit }}</small>
+                            {% if trim.pending_transfer_qty %}
+                            <div class="small text-warning" title="Transfers waiting for admin approval">{{ trim.pending_transfer_qty|floatformat:"-2" }} awaiting approval</div>
+                            {% endif %}
                         </td>
                         <td>
                             {% if trim.stock_status == 'in_stock' %}
@@ -91,12 +96,14 @@
                             <div class="btn-group btn-group-sm">
                                 <button type="button" class="btn btn-outline-success" title="Add Stock"
                                         data-trim-stock="add" data-trim-id="{{ trim.pk }}" data-trim-name="{{ trim.trim_code }} - {{ trim.trim_name }}"
-                                        data-trim-unit="{{ trim.unit }}" data-trim-stock-qty="{{ trim.current_stock }}">
+                                        data-trim-unit="{{ trim.unit }}" data-trim-stock-qty="{{ trim.current_stock }}"
+                                        data-trim-pending-qty="{{ trim.pending_transfer_qty|default:0 }}">
                                     <i class="fas fa-plus"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" title="Remove Stock"
-                                        data-trim-stock="remove" data-trim-id="{{ trim.pk }}" data-trim-name="{{ trim.trim_code }} - {{ trim.trim_name }}"
+                                <button type="button" class="btn btn-outline-danger" title="Transfer Stock (needs admin approval)"
+                                        data-trim-stock="transfer" data-trim-id="{{ trim.pk }}" data-trim-name="{{ trim.trim_code }} - {{ trim.trim_name }}"
                                         data-trim-unit="{{ trim.unit }}" data-trim-stock-qty="{{ trim.current_stock }}"
+                                        data-trim-pending-qty="{{ trim.pending_transfer_qty|default:0 }}"
                                         {% if trim.current_stock <= 0 %}disabled{% endif %}>
                                     <i class="fas fa-minus"></i>
                                 </button>
@@ -106,12 +113,15 @@
                                 <a href="{% url 'inventory:edit_trim' trim.pk %}" class="btn btn-outline-warning" title="Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <a href="{% url 'inventory:add_trim' %}?copy_from={{ trim.pk }}" class="btn btn-outline-secondary" title="Copy into a new item">
+                                    <i class="fas fa-copy"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-4">
+                        <td colspan="{% if user.is_superuser %}9{% else %}8{% endif %}" class="text-center py-4">
                             <i class="fas fa-thumbtack fa-3x text-muted mb-3 d-block"></i>
                             <p class="text-muted">No trims found</p>
                             <a href="{% url 'inventory:add_trim' %}" class="btn btn-gradient btn-sm">

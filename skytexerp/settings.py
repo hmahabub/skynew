@@ -52,6 +52,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.accounts.context_processors.merchandising',
             ],
         },
     },
@@ -104,3 +105,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard:dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Merchandising module (Purchase Orders, Sales Invoices) isn't built yet, so
+# its pages are hidden and Accounting runs on Orders, Payments, Costs and
+# Banks alone. Set MERCHANDISING_ENABLED=True in .env to bring them back -
+# no data is removed while it's off.
+MERCHANDISING_ENABLED = config('MERCHANDISING_ENABLED', default=False, cast=bool)

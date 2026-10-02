@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Cost Sheets - SkyTex ERP{% endblock %}
 
@@ -25,9 +26,9 @@
     <div class="filter-section">
         <form method="get" class="row g-3">
             <div class="col-md-4">
-                <label class="form-label small">Project</label>
+                <label class="form-label small">Order</label>
                 <select name="style" class="form-select">
-                    <option value="">All Projects</option>
+                    <option value="">All Orders</option>
                     {% for style in styles %}
                     <option value="{{ style.id }}" {% if current_style == style.id|stringformat:"s" %}selected{% endif %}>
                         {{ style.project_number }} - {{ style.buyer.buyer_name }}
@@ -67,11 +68,11 @@
                             <small class="text-muted">{{ cost_sheet.style.buyer.buyer_name }}</small>
                         </td>
                         <td>{{ cost_sheet.cost_date }}</td>
-                        <td>${{ cost_sheet.total_cost|floatformat:2 }}</td>
-                        <td>${{ cost_sheet.selling_price|floatformat:2 }}</td>
+                        <td>{{ cost_sheet.total_cost|usd }}</td>
+                        <td>{{ cost_sheet.selling_price|usd }}</td>
                         <td>
                             <span class="{% if cost_sheet.profit > 0 %}text-success{% else %}text-danger{% endif %}">
-                                ${{ cost_sheet.profit|floatformat:2 }}
+                                {{ cost_sheet.profit|usd }}
                             </span>
                         </td>
                         <td>

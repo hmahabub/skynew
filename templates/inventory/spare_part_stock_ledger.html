@@ -74,7 +74,7 @@
                         <th>Department</th>
                         <th>Machine</th>
                         <th>Quantity</th>
-                        <th>Cost</th>
+                        {% if user.is_superuser %}<th>Cost</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -84,7 +84,7 @@
                         <td>{{ c.department.name }}</td>
                         <td>{% if c.machine %}<a href="{% url 'inventory:machine_detail' c.machine_id %}">{{ c.machine.machine_code }}</a>{% else %}-{% endif %}</td>
                         <td>{{ c.quantity }}</td>
-                        <td>{{ c.total_cost }}</td>
+                        {% if user.is_superuser %}<td>{{ c.total_cost }}</td>{% endif %}
                     </tr>
                     {% empty %}
                     <tr><td colspan="5" class="text-center text-muted py-3">No consumption recorded yet.</td></tr>

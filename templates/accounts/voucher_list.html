@@ -1,0 +1,95 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load money %}
+
+{% block title %}Expense Vouchers - SkyTex ERP{% endblock %}
+
+{% block page_title %}Expense Vouchers{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-1">Expense Vouchers</h5>
+                <p class="text-muted small mb-0">
+                    {% if user.is_superuser %}
+                        Approving a voucher records it as a paid cost straight away.
+                    {% else %}
+                        Your requests for money to be spent. An admin approves them.
+                    {% endif %}
+                </p>
+            </div>
+            <a href="{% url 'accounts:add_voucher' %}" class="btn btn-gradient">
+                <i class="fas fa-plus"></i> New Voucher
+            </a>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3">
+        {% for code, label in statuses %}
+        <li class="nav-item"><a class="nav-link {% if current_status == code %}active{% endif %}" href="?status={{ code }}">{{ label }}</a></li>
+        {% endfor %}
+        <li class="nav-item"><a class="nav-link {% if current_status == '' %}active{% endif %}" href="?status=">All</a></li>
+    </ul>
+
+    <div class="stat-card">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Voucher #</th>
+                        <th>Date</th>
+                        <th>For</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Pay By</th>
+                        {% if user.is_superuser %}<th>Requested By</th>{% endif %}
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for voucher in vouchers %}
+                    <tr>
+                        <td><strong>{{ voucher.voucher_number }}</strong></td>
+                        <td>{{ voucher.voucher_date }}</td>
+                        <td>{% if voucher.project %}{{ voucher.project.project_number }}{% else %}<span class="badge bg-light text-dark">Overall</span>{% endif %}</td>
+                        <td>{{ voucher.get_cost_type_display }}</td>
+                        <td>{{ voucher.description }}{% if voucher.supplier %}<div class="small text-muted">to {{ voucher.supplier.supplier_name }}</div>{% endif %}</td>
+                        <td><strong>{{ voucher.amount|bdt }}</strong></td>
+                        <td>{{ voucher.get_paid_by_display }}</td>
+                        {% if user.is_superuser %}<td>{{ voucher.requested_by.username|default:"-" }}</td>{% endif %}
+                        <td>
+                            {% if voucher.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pending Approval</span>
+                            {% elif voucher.status == 'approved' %}
+                                <span class="badge bg-success" title="By {{ voucher.approved_by.username }} on {{ voucher.approved_date }}">Approved</span>
+                            {% else %}
+                                <span class="badge bg-danger" title="{{ voucher.rejection_reason }}">Rejected</span>
+                                {% if voucher.rejection_reason %}<div class="small text-muted">{{ voucher.rejection_reason }}</div>{% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'accounts:print_voucher' voucher.pk %}" class="btn btn-sm btn-outline-secondary" title="Print debit voucher" target="_blank" rel="noopener">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                                {% if user.is_superuser and voucher.status == 'pending' %}
+                                {% include 'accounts/includes/voucher_actions.html' %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if user.is_superuser %}10{% else %}9{% endif %}" class="text-center text-muted py-4">No vouchers here.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

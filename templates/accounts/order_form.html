@@ -1,0 +1,86 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}{% if project %}Edit{% else %}Add{% endif %} Order - SkyTex ERP{% endblock %}
+
+{% block page_title %}{% if project %}Edit Order {{ project.project_number }}{% else %}Add New Order{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-7 col-md-9">
+            <div class="stat-card">
+                <p class="text-muted small">
+                    An Order is what Costs, Cost Sheets, Letters of Credit and Dispatches are recorded against.
+                    Detailed order info comes later with the Merchandising module.
+                </p>
+                <form method="post">
+                    {% csrf_token %}
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger py-2">Please fix the errors highlighted below.</div>
+                        {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Order No.</label>
+                            <div class="form-control bg-light">{% if project %}{{ project.project_number }}{% else %}<span class="text-muted">Generated on save</span>{% endif %}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="{{ form.buyer.id_for_label }}">Buyer *</label>
+                            {{ form.buyer }}
+                            {% for error in form.buyer.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="{{ form.buyer_ref.id_for_label }}">Buyer Ref.</label>
+                            {{ form.buyer_ref }}
+                            {% for error in form.buyer_ref.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="{{ form.order_quantity.id_for_label }}">Quantity (pcs) *</label>
+                            {{ form.order_quantity }}
+                            {% for error in form.order_quantity.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="{{ form.total_value.id_for_label }}">Order Value *</label>
+                            {{ form.total_value }}
+                            {% for error in form.total_value.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="{{ form.delivery_date.id_for_label }}">Delivery Date *</label>
+                            {{ form.delivery_date }}
+                            {% for error in form.delivery_date.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label" for="{{ form.status.id_for_label }}">Status</label>
+                            {{ form.status }}
+                            {% for error in form.status.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label" for="{{ form.remarks.id_for_label }}">Notes</label>
+                            {{ form.remarks }}
+                            {% for error in form.remarks.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mt-2 border-top pt-3">
+                        <button type="submit" class="btn btn-gradient">
+                            <i class="fas fa-save"></i> {% if project %}Update{% else %}Create{% endif %} Order
+                        </button>
+                        <a href="{% url 'accounts:projects_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

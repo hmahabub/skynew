@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load money %}
 
 {% block title %}Costs - SkyTex ERP{% endblock %}
 
@@ -8,29 +9,48 @@
 {% block content %}
 <div class="container-fluid">
     <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <h5 class="mb-1">Actual Cost Ledger</h5>
-                <p class="text-muted small mb-0">PO Cost and Other Cost entries, per project</p>
+                <h5 class="mb-1">Costs</h5>
+                <p class="text-muted small mb-0">Every cost here is already paid - it came out of the Cash Book when it was entered.</p>
             </div>
-            <div>
+            <div class="d-flex gap-2">
                 <a href="{% url 'accounts:add_cost' %}" class="btn btn-gradient">
-                    <i class="fas fa-plus"></i> Add Cost
+                    <i class="fas fa-tshirt"></i> Add Order Cost
+                </a>
+                <a href="{% url 'accounts:add_overall_cost' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-building"></i> Add Overall Cost
                 </a>
             </div>
         </div>
     </div>
 
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item"><a class="nav-link {% if not current_scope %}active{% endif %}" href="?scope=&from={{ date_from }}&to={{ date_to }}">All Costs</a></li>
+        <li class="nav-item"><a class="nav-link {% if current_scope == 'order' %}active{% endif %}" href="?scope=order&from={{ date_from }}&to={{ date_to }}">Order Costs</a></li>
+        <li class="nav-item"><a class="nav-link {% if current_scope == 'overall' %}active{% endif %}" href="?scope=overall&from={{ date_from }}&to={{ date_to }}">Overall Costs</a></li>
+    </ul>
+
     <div class="filter-section">
         <form method="get" class="row g-3">
-            <div class="col-md-3">
-                <label class="form-label small">Project</label>
+            <input type="hidden" name="scope" value="{{ current_scope }}">
+            {% if current_scope != 'overall' %}
+            <div class="col-md-4">
+                <label class="form-label small">Order</label>
                 <select name="project" class="form-select">
-                    <option value="">All Projects</option>
-                    {% for project in projects %}
-                    <option value="{{ project.id }}" {% if current_project == project.id|stringformat:"s" %}selected{% endif %}>
-                        {{ project.project_number }}
-                    </option>
+                    <option value="">All Orders</option>
+                    {% for p in projects %}
+                    <option value="{{ p.pk }}" {% if current_project == p.pk|stringformat:'s' %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-3">
+                <label class="form-label small">Supplier</label>
+                <select name="supplier" class="form-select">
+                    <option value="">All Suppliers</option>
+                    {% for s in suppliers %}
+                    <option value="{{ s.pk }}" {% if current_supplier == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.supplier_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -38,59 +58,69 @@
                 <label class="form-label small">Cost Type</label>
                 <select name="cost_type" class="form-select">
                     <option value="">All Types</option>
-                    {% for type_code, type_name in cost_types %}
-                    <option value="{{ type_code }}" {% if current_cost_type == type_code %}selected{% endif %}>
-                        {{ type_name }}
-                    </option>
+                    {% for code, label in cost_types %}
+                    <option value="{{ code }}" {% if current_cost_type == code %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-2">
+                <label class="form-label small">From</label>
+                <input type="date" name="from" class="form-control" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small">To</label>
+                <input type="date" name="to" class="form-control" value="{{ date_to }}">
+            </div>
             <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-filter"></i> Filter
-                </button>
+                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i> Filter</button>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <a href="?scope={{ current_scope }}" class="btn btn-outline-light w-100" title="Clear filters"><i class="fas fa-undo"></i></a>
             </div>
         </form>
     </div>
 
     <div class="stat-card">
+        <div class="d-flex justify-content-end mb-2">
+            <span class="text-muted small">Total shown: <strong>{{ total|bdt }}</strong></span>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Project</th>
-                        <th>Type</th>
-                        <th>PO</th>
                         <th>Date</th>
+                        <th>Order</th>
+                        <th>Type</th>
+                        <th>Supplier</th>
+                        {% if MERCHANDISING_ENABLED %}<th>PO</th>{% endif %}
                         <th>Description</th>
                         <th>Amount</th>
-                        <th>Payment Status</th>
+                        <th>Paid By</th>
+                        <th>Reference</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for cost in costs %}
                     <tr>
-                        <td><a href="{% url 'accounts:project_detail' cost.project.pk %}">{{ cost.project.project_number }}</a></td>
-                        <td><span class="badge bg-secondary">{{ cost.get_cost_type_display }}</span></td>
-                        <td>{{ cost.purchase_order.po_number|default:"Other" }}</td>
                         <td>{{ cost.cost_date }}</td>
-                        <td class="text-muted small">{{ cost.description|truncatechars:30 }}</td>
-                        <td>{{ cost.currency }} {{ cost.amount|floatformat:2 }}</td>
                         <td>
-                            <span class="badge bg-{% if cost.payment_status == 'paid' %}success{% elif cost.payment_status == 'partial' %}warning{% else %}danger{% endif %}">
-                                {{ cost.get_payment_status_display }}
-                            </span>
+                            {% if cost.project %}
+                                <a href="{% url 'accounts:project_detail' cost.project.pk %}">{{ cost.project.project_number }}</a>
+                            {% else %}
+                                <span class="badge bg-light text-dark">Overall</span>
+                            {% endif %}
                         </td>
+                        <td>{{ cost.get_cost_type_display }}</td>
+                        <td>{{ cost.supplier.supplier_name|default:"-" }}</td>
+                        {% if MERCHANDISING_ENABLED %}<td>{{ cost.purchase_order.po_number|default:"-" }}</td>{% endif %}
+                        <td>{{ cost.description|default:"-" }}{% if cost.voucher %} <span class="badge bg-info" title="From an approved voucher">{{ cost.voucher.voucher_number }}</span>{% endif %}</td>
+                        <td><strong>{{ cost.amount|bdt }}</strong></td>
+                        <td>{{ cost.get_paid_by_display }}{% if cost.bank_name %} <small class="text-muted">({{ cost.bank_name }})</small>{% endif %}</td>
+                        <td>{{ cost.reference|default:"-" }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-4">
-                            <i class="fas fa-receipt fa-3x text-muted mb-3 d-block"></i>
-                            <p class="text-muted">No costs recorded</p>
-                            <a href="{% url 'accounts:add_cost' %}" class="btn btn-gradient btn-sm">
-                                <i class="fas fa-plus"></i> Add First Cost
-                            </a>
-                        </td>
+                        <td colspan="{% if MERCHANDISING_ENABLED %}9{% else %}8{% endif %}" class="text-center py-4 text-muted">No costs recorded yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
